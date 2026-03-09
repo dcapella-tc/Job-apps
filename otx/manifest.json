@@ -1,37 +1,32 @@
 {
   "README.md": {
-    "last_commit": "52d2dc0b0ee9f995899f1effe561a99da5add852",
-    "sha256": "a350641158fe7f285e28e33e93a394171dd71f644ee0e3f10f185d17f2cb127b",
-    "template_path": "organization/basic/README.md"
+    "last_commit": "6457b910aec7710902ae5a50293d08892f76b6db",
+    "sha256": "adaf8b085c7d29ccacd787f3b038eb3f1d978901ef4e868693df70800c41df4b",
+    "template_path": "organization/ingress/README.md"
   },
   "app.py": {
-    "last_commit": "a4244225ffb6299b0651213027ac673ed86b6782",
-    "sha256": "7cd89a628b5ea4db73629861ee2baa92c5fade676f667094681d94bb055234de",
-    "template_path": "organization/basic/app.py"
+    "last_commit": "c36d36c5caf00c1150efae6c9d08bb2e7d304f33",
+    "sha256": "5bce9770487afb7cef89300d5edf07e62aee691644d39a12c59d85fb4404a18c",
+    "template_path": "organization/ingress/app.py"
+  },
+  "app_inputs.json": {
+    "last_commit": "52d2dc0b0ee9f995899f1effe561a99da5add852",
+    "sha256": "a2db0cb62dd455418e21605835a3aadd84c1fcb77563cfacbfc51652c77fe861",
+    "template_path": "organization/ingress/app_inputs.json"
   },
   "app_inputs.py": {
     "last_commit": "a4244225ffb6299b0651213027ac673ed86b6782",
-    "sha256": "6c8ec262a13fa58bed875bc760ee5598bdf0b8a43ac0d50d50e999dbe06bd02b",
-    "template_path": "organization/basic/app_inputs.py"
+    "sha256": "5693a8a1f2f9170bf73c3ccd429166d061ffbfcd74f4fe3fec8de276ddb4e8c6",
+    "template_path": "organization/ingress/app_inputs.py"
   },
   "install.json": {
     "last_commit": "80072834613280f1b323333baa81b67b89414110",
-    "sha256": "81b266806d8fb7655b0887042a043d7259836b8659ffe433ba7d8baff6254045",
-    "template_path": "organization/basic/install.json"
-  },
-  "job_app.py": {
-    "last_commit": "c36d36c5caf00c1150efae6c9d08bb2e7d304f33",
-    "sha256": "09366aa4a6d4a837ed31cce6f85aad36f1cd75ddcb349ec2ffe23f9c44f1e707",
-    "template_path": "organization/basic/job_app.py"
-  },
-  "run.py": {
-    "last_commit": "c36d36c5caf00c1150efae6c9d08bb2e7d304f33",
-    "sha256": "b2a22c6b82e3c7624abc8b58a5cae7ab10eb41a059f807a1724777a9ceaa00bc",
-    "template_path": "organization/basic/run.py"
+    "sha256": "a6c47df0968b957b5ed10a7f53bab9ceda4e7f6584605fbcbe75caaf9d55503d",
+    "template_path": "organization/ingress/install.json"
   },
   "tcex.json": {
     "last_commit": "43a236aa2454ffd38c9665fe86feebacb358290f",
-    "sha256": "2a3425cdd83d472f34d5000a1dd309cad279bbf2408dfd64921de39a0a22710d",
-    "template_path": "organization/basic/tcex.json"
+    "sha256": "ed86bb5de25d06d138ac240cf6857a23887c9e14d6e818b24fb5922df255a0c2",
+    "template_path": "organization/ingress/tcex.json"
   }
 }

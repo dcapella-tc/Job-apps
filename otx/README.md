@@ -1,14 +1,17 @@
-# Basic Job Template
+# Ingress Template using TcEx Batch
 
 # Release Notes
 
-### 1.0.0
+### 1.0.0 (2021-04-22)
 
 * Initial Release
 
 
 # Description
 
-A template that provides the structure for a Job App without any App logic.
+A template of a working ingress Organization App.
 
 ### Inputs
+
+  **ThreatConnect Owner** *(Choice)*
+  The owner from which indicators (and maybe groups) will be counted

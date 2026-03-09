@@ -26,19 +26,15 @@
     "sha": "b786088fdb180fee51f527d3392e227755d15532"
   },
   "organization/basic/README.md": {
-    "md5": "60275081ce9d28686b29ae40c82fd233",
     "sha": "40f927ca438fe6d295c124c3693d6376f20218cb"
   },
   "organization/basic/app.py": {
-    "md5": "4d1a47b69d58f3f0c917fae626f77cc0",
     "sha": "b5a990edef7a95eb89136f5fc45fad8c2834ef81"
   },
   "organization/basic/app_inputs.py": {
-    "md5": "777414fb2b015d0611a785b38b94f3ef",
     "sha": "87d8d4436b44c9be94198000966df883a66a4222"
   },
   "organization/basic/install.json": {
-    "md5": "f8a10027ba96702315585cf0fec80c41",
     "sha": "6b004b20b83355755469cb14d2646dc6c842ac55"
   },
   "organization/basic/job_app.py": {
@@ -46,7 +42,6 @@
     "sha": "5a18bef4de617eee6b6e989f770c6d64ebe0ac45"
   },
   "organization/basic/manifest.json": {
-    "md5": "3941fd1b56e535707233d43f6292c4a3",
     "sha": "410e6204ec867b3611920cb894fe6797ea5e9582"
   },
   "organization/basic/run.py": {
@@ -54,7 +49,34 @@
     "sha": "f5d7af6f617b621c07a08f49bc415426325f5974"
   },
   "organization/basic/tcex.json": {
-    "md5": "22060e40d885bb35fb1326d949d27d5f",
     "sha": "520dfeb5f88570fe66b581e845ed5990d9c193ae"
+  },
+  "organization/ingress/README.md": {
+    "md5": "b90bb00855284a1f0869e7b2f0a06adf",
+    "sha": "764d7e9630370046db3bc81606fa48a8ccae8b80"
+  },
+  "organization/ingress/app.py": {
+    "md5": "a184cc75f685983823f83ea1440ec3cb",
+    "sha": "b6acb2bf444feb0e40a747812bd9fa0e574f06db"
+  },
+  "organization/ingress/app_inputs.json": {
+    "md5": "7723715f152b754b03af415e3d44cd24",
+    "sha": "fbb1e07d6fe2c43d5958adb2f76c4116fb65162e"
+  },
+  "organization/ingress/app_inputs.py": {
+    "md5": "48352aaf1fe7aaa5ce5f8ba1e0a73bbe",
+    "sha": "0363b21fbad3ac374d05da327a03ec80eb7399bf"
+  },
+  "organization/ingress/install.json": {
+    "md5": "5f75777d47e32f591a00b28a783a0062",
+    "sha": "f6c3ff6c5ebf4d08aa1ee8058e898205a20fecd0"
+  },
+  "organization/ingress/manifest.json": {
+    "md5": "cf536a720386059d11c96dede09e44fa",
+    "sha": "1ac346f63e2de21d460405ac0630c0173da9af95"
+  },
+  "organization/ingress/tcex.json": {
+    "md5": "e6286a5f5e23d885067541ca5e6af429",
+    "sha": "fe190c8f1b38b8977858f3e7bdf43f4ceadcd024"
   }
 }
