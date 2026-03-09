@@ -1,6 +1,6 @@
 {
   "allowOnDemand": true,
-  "displayName": "Example Basic Organization App",
+  "displayName": "Batch Template",
   "features": [
     "aotExecutionEnabled",
     "appBuilderCompliant",
@@ -9,8 +9,19 @@
   "labels": [],
   "languageVersion": "3.11",
   "listDelimiter": "|",
-  "note": "A template that provides the structure for a Job App without any App logic.",
+  "note": "A template of a working ingress Organization App.",
   "params": [
+    {
+      "label": "ThreatConnect Owner",
+      "name": "tc_owner",
+      "note": "The destination Owner in the ThreatConnect Platform.",
+      "required": true,
+      "sequence": 1,
+      "type": "Choice",
+      "validValues": [
+        "${OWNERS}"
+      ]
+    },
     {
       "default": "warning",
       "label": "Logging Level",
