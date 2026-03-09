@@ -1,14 +1,11 @@
 """App Inputs"""
 
-from tcex.input.field_type import String
+from pydantic import BaseModel
 from tcex.input.input import Input
-from tcex.input.model.app_organization_model import AppOrganizationModel
 
 
-class AppBaseModel(AppOrganizationModel):
+class AppBaseModel(BaseModel):
     """Base model for the App containing any common inputs."""
-
-    tc_owner: String
 
 
 class AppInputs:
@@ -19,5 +16,9 @@ class AppInputs:
         self.inputs = inputs
 
     def update_inputs(self):
-        """Add custom App models to inputs. Validation will run at the same time."""
+        """Add custom App models to inputs.
+
+        Input will be validate when the model is added an any exceptions will
+        cause the App to exit with a status code of 1.
+        """
         self.inputs.add_model(AppBaseModel)
