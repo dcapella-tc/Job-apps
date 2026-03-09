@@ -1,0 +1,7 @@
+{
+  "inputs": {
+    "tc_logging_level": "debug",
+    "tc_owner": "TCI"
+  },
+  "stage": {}
+}
