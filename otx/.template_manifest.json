@@ -1,0 +1,60 @@
+{
+  "_app_common/.coveragerc": {
+    "md5": "d51ce32ae5bc397f95e4e6bf225210fb",
+    "sha": "d70463b845a6d58f9069d02670eaeddf9bb1ee7f"
+  },
+  "_app_common/.gitignore": {
+    "md5": "1a8866ef0fe38f3a8be31ddee0897566",
+    "sha": "0002c101f532f4a6b761355f9ec29ae5b9f0700f"
+  },
+  "_app_common/.pre-commit-config.yaml": {
+    "md5": "81ca4190b0b3389cc71fef82f106fa3c",
+    "sha": "4e66f94350ff5527a08399d06257fe10536b49e7"
+  },
+  "_app_common/README.md": {
+    "sha": "e8d369336d6c32d18e7f8eb2489320a6891b410b"
+  },
+  "_app_common/manifest.json": {
+    "sha": "1339ae8c01a96a9fa43f0010cc17dad1984a722c"
+  },
+  "_app_common/pyproject.toml": {
+    "md5": "ef752bafa2d11598a07892d99d274eec",
+    "sha": "df3d748f4161abf12c38741cd450e13395813755"
+  },
+  "_app_common/requirements.txt": {
+    "md5": "34e5b8dd2f173f499d9da13e1e56fbcd",
+    "sha": "b786088fdb180fee51f527d3392e227755d15532"
+  },
+  "organization/basic/README.md": {
+    "md5": "60275081ce9d28686b29ae40c82fd233",
+    "sha": "40f927ca438fe6d295c124c3693d6376f20218cb"
+  },
+  "organization/basic/app.py": {
+    "md5": "4d1a47b69d58f3f0c917fae626f77cc0",
+    "sha": "b5a990edef7a95eb89136f5fc45fad8c2834ef81"
+  },
+  "organization/basic/app_inputs.py": {
+    "md5": "777414fb2b015d0611a785b38b94f3ef",
+    "sha": "87d8d4436b44c9be94198000966df883a66a4222"
+  },
+  "organization/basic/install.json": {
+    "md5": "f8a10027ba96702315585cf0fec80c41",
+    "sha": "6b004b20b83355755469cb14d2646dc6c842ac55"
+  },
+  "organization/basic/job_app.py": {
+    "md5": "e9a92246d66770f371c3a229e5c64b28",
+    "sha": "5a18bef4de617eee6b6e989f770c6d64ebe0ac45"
+  },
+  "organization/basic/manifest.json": {
+    "md5": "3941fd1b56e535707233d43f6292c4a3",
+    "sha": "410e6204ec867b3611920cb894fe6797ea5e9582"
+  },
+  "organization/basic/run.py": {
+    "md5": "283f7c0ab00bf719ddadf8463877e351",
+    "sha": "f5d7af6f617b621c07a08f49bc415426325f5974"
+  },
+  "organization/basic/tcex.json": {
+    "md5": "22060e40d885bb35fb1326d949d27d5f",
+    "sha": "520dfeb5f88570fe66b581e845ed5990d9c193ae"
+  }
+}
