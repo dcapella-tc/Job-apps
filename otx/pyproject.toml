@@ -3,6 +3,8 @@
 skip = "*.history,lib_*,local-*"
 
 [tool.pyright]
+# Additional import resolution paths so the type checker can find vendored deps
+extraPaths = ["deps"]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md#sample-pyprojecttoml-file
 # Directories to exclude from type checking
 exclude = [

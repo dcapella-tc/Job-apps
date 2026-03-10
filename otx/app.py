@@ -1,11 +1,55 @@
 """ThreatConnect Job App"""
 
+import re
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from tcex import TcEx
 from tcex.exit import ExitCode
 
 from job_app import JobApp  # Import default Job App Class (Required)
+
+# Match "N Days Ago" or "N Day Ago" (case-insensitive)
+_DAYS_AGO_RE = re.compile(r'^\s*(\d+)\s+days?\s+ago\s*$', re.IGNORECASE)
+
+
+def parse_last_run(value: str) -> datetime:
+    """Convert last_run string to a UTC datetime.
+
+    Accepts:
+        - "N Days Ago" / "N Day Ago" (case-insensitive): relative to now (UTC).
+        - ISO-like date strings (e.g. 2026-03-10, 2026-03-10T12:00:00Z): parsed and returned as UTC.
+
+    Returns:
+        Timezone-aware datetime in UTC.
+
+    Raises:
+        ValueError: If value is empty or does not match the expected formats.
+    """
+    if not value or not value.strip():
+        raise ValueError(
+            'last_run must be a non-empty string: either "N Days Ago" (e.g. "7 Days Ago") '
+            'or an ISO date/time (e.g. 2026-03-10 or 2026-03-10T12:00:00Z).'
+        )
+    raw = value.strip()
+    m = _DAYS_AGO_RE.match(raw)
+    if m:
+        n = int(m.group(1))
+        return datetime.now(timezone.utc) - timedelta(days=n)
+    # Treat as ISO-like
+    iso = raw.rstrip('Zz').rstrip()
+    if raw.upper().endswith('Z'):
+        iso += '+00:00'
+    try:
+        dt = datetime.fromisoformat(iso)
+    except ValueError as e:
+        raise ValueError(
+            'last_run must be "N Days Ago" (e.g. "7 Days Ago") or an ISO date/time '
+            '(e.g. 2026-03-10 or 2026-03-10T12:00:00Z).'
+        ) from e
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def extract_pulse_ids(pulses_json: dict) -> List[str]:
@@ -49,8 +93,19 @@ class App(JobApp):
 
     def run(self):
         """Run main App logic."""
+        last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
+        try:
+            last_run_dt = parse_last_run(last_run_raw)
+        except ValueError as e:
+            self.tcex.exit.exit(ExitCode.FAILURE, str(e))
+            return
+        modified_since_iso = last_run_dt.isoformat().replace('+00:00', 'Z')
+
         with self.tcex.session.external as s:
-            r = s.get('/pulses/subscribed', params={'page': 1})
+            r = s.get(
+                '/pulses/subscribed',
+                params={'page': 1, 'modified_since': modified_since_iso},
+            )
             if not r.ok:
                 self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to download data.')
                 return
