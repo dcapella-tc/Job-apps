@@ -9,6 +9,7 @@ class AppBaseModel(AppOrganizationModel):
     """Base model for the App containing any common inputs."""
 
     tc_owner: String
+    otx_api_key: String
 
 
 class AppInputs:
