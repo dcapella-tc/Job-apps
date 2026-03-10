@@ -1,0 +1,156 @@
+[codespell]
+# ignore-words-list=
+skip = "*.history,lib_*,local-*"
+
+[tool.pyright]
+# https://github.com/microsoft/pyright/blob/main/docs/configuration.md#sample-pyprojecttoml-file
+# Directories to exclude from type checking
+exclude = [
+  "**/.*",
+  "**/.history",
+  "**/.venv",
+  "**/__pycache__",
+  "**/deps",
+  "**/deps_tests",
+  "**/local-*",
+  "**/tests",
+]
+# Target platform for platform-specific type analysis
+pythonPlatform = "Linux"
+# Python version for type checking compatibility
+pythonVersion = "3.11"
+# Suppress diagnostics for private imports from external packages
+reportPrivateImportUsage = false
+reportAttributeAccessIssue = false
+reportOptionalMemberAccess = false
+reportCallIssue = false
+reportArgumentType = false
+
+[tool.pytest.ini_options]
+# addopts = "-p no:warnings"
+# addopts = "--tb=short --show-capture=no"
+# addopts = "-n auto"
+junit_family = "xunit2"
+# Directories to search for test files
+testpaths = ["tests"]
+
+[tool.ruff]
+# https://docs.astral.sh/ruff/
+# Directories excluded from both linting and formatting
+exclude = ["tests"]
+# Maximum allowed line length before triggering line-length violations
+line-length = 100
+# Source roots for first-party import detection (enables auto-detection of top-level packages)
+src = ["."]
+# Minimum Python version to target for upgrade rules and syntax checks
+target-version = "py311"
+
+[tool.ruff.format]
+# https://docs.astral.sh/ruff/formatter/
+# Format code examples found within docstrings
+docstring-code-format = true
+# Maximum line length for code examples within docstrings
+docstring-code-line-length = 60
+# Use spaces for indentation instead of tabs
+indent-style = "space"
+# Detect and preserve the existing line ending style of a file
+line-ending = "auto"
+# Use single quotes for strings where possible
+quote-style = "single"
+# Preserve trailing commas as-is (do not remove them)
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+# https://docs.astral.sh/ruff/linter/
+# Rules to suppress even when their parent group is enabled
+ignore = [
+  'BLE001', # blind except: except: clause
+  'D400', # First line should end with a period
+  'D401', # First line should be in imperative mood
+  'D415', # First line should end with a period, question mark, or exclamation point
+  'EM101', # Exception must not use a string literal
+  'EM102', # Exception must not use an f-string literal
+  'FBT001', # Boolean-typed positional argument in function definition
+  'FBT002', # Boolean default positional argument in function definition
+  'FBT003', # Boolean positional value in function call
+  'G004', # use % formatting in logging functions
+  'PGH003', # Use specific rule codes when ignoring type issues
+  'PLR0913', # Too many arguments in function definition  (x > 5)
+  'PLR2004', # Magic value used in comparison
+  'PLW2901', # for loop variable overwritten by assignment target
+  'RET504', # Unnecessary assignment before return statement
+  'SIM102', # Collapsible if statement
+  'SIM103', # Return the condition directly
+  'SIM108', # Use ternary operator instead of if-else block
+  'SIM117', # Multiple with statements
+  'TC001', # Move application import into a type-checking block
+  'TC002', # Move third-party import into a type-checking block
+  'TC003', # Move standard library import into a type-checking block
+  'TRY003', # Avoid specifying long messages outside the exception class
+  'TRY300', # Consider moving this statement to an else block
+  'INP001', # Implicit namespace package
+]
+# Rule groups to enable (each code prefix enables all rules in that group)
+select = [
+  "A", # flake8-builtins: prevent shadowing Python builtins
+  "ARG", # flake8-unused-arguments: detect unused function/method arguments
+  "B", # flake8-bugbear: find likely bugs and design problems
+  "BLE", # flake8-blind-except: flag blind except clauses
+  "C4", # flake8-comprehensions: suggest simpler comprehension syntax
+  "C90", # mccabe: enforce maximum cyclomatic complexity
+  "D", # pydocstyle: enforce docstring conventions
+  "DJ", # flake8-django: Django-specific best practices
+  "DTZ", # flake8-datetimez: require timezone-aware datetime usage
+  "E", # pycodestyle errors: PEP 8 style violations (errors)
+  "EM", # flake8-errmsg: require string literals in exception constructors
+  "EXE", # flake8-executable: check shebang lines and file permissions
+  "F", # pyflakes: detect unused imports, variables, and other mistakes
+  "FBT", # flake8-boolean-trap: flag boolean positional arguments
+  "G", # flake8-logging-format: enforce logging format string best practices
+  "I", # isort: sort and organize import statements
+  "ICN", # flake8-import-conventions: enforce conventional import aliases
+  "INP", # flake8-no-implicit-namespace-packages: require __init__.py files
+  "ISC", # flake8-implicit-str-concat: detect implicitly concatenated strings
+  "N", # pep8-naming: enforce PEP 8 naming conventions
+  "NPY", # numpy-specific: NumPy deprecation and best practice checks
+  "PD", # pandas-vet: pandas-specific anti-pattern detection
+  "PGH", # pygrep-hooks: miscellaneous lint checks (e.g., blanket noqa)
+  "PIE", # flake8-pie: miscellaneous lint rules for cleaner code
+  "PL", # pylint: broad static analysis (includes PLC, PLE, PLR, PLW)
+  "PT", # flake8-pytest-style: enforce pytest best practices
+  "PTH", # flake8-use-pathlib: suggest pathlib over os.path
+  "PYI", # flake8-pyi: type stub (.pyi) file best practices
+  "RET", # flake8-return: check return statement consistency
+  "RSE", # flake8-raise: detect unnecessary exception parentheses
+  "RUF", # ruff-specific: Ruff's own opinionated rules
+  "SIM", # flake8-simplify: suggest code simplifications
+  "SLF", # flake8-self: flag private member access from outside the class
+  "T10", # flake8-debugger: detect leftover debugger breakpoints
+  "T20", # flake8-print: flag print statements (prefer logging)
+  "TC", # flake8-type-checking: move type-only imports behind TYPE_CHECKING
+  "TID", # flake8-tidy-imports: enforce import hygiene and bans
+  "TRY", # tryceratops: enforce exception handling best practices
+  "UP", # pyupgrade: suggest modern Python syntax upgrades
+  "W", # pycodestyle warnings: PEP 8 style violations (warnings)
+  "YTT", # flake8-2020: detect sys.version misuse and Python 2/3 compat issues
+]
+
+# Per-file rule overrides
+[tool.ruff.lint.pylint]
+max-args = 10
+[tool.ruff.lint.extend-per-file-ignores]
+# Allow unused imports in __init__.py (commonly used for public API re-exports)
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "tcex.logger.trace_logger.TraceLogger"]
+runtime-evaluated-decorators = ["pydantic.BaseModel", "tcex.logger.trace_logger.TraceLogger"]
+
+[tool.ruff.lint.isort]
+# Keep trailing commas when present, which forces one-import-per-line formatting
+split-on-trailing-comma = true
+known-local-folder = ["."]
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstring convention for docstring rule enforcement
+convention = "google"
