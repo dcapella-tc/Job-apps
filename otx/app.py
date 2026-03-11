@@ -129,12 +129,14 @@ class App(JobApp):
         """Fetch a single pulses page and return the parsed JSON payload."""
         r = session.get(url, params=params)
         if not r.ok:
+            self.tcex.log.error(f'Response Code: {r.status_code}\nResponse Text: {r.text}')
             self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to download data.')
             return None
 
         try:
             payload = r.json()
         except Exception:  # pragma: no cover - defensive programming
+            self.tcex.log.error(f'Failed to parse response JSON: {r.text}')
             self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to parse response JSON.')
             return None
 
@@ -152,6 +154,7 @@ class App(JobApp):
         try:
             payload = r.json()
         except Exception:  # pragma: no cover - defensive programming
+            self.tcex.log.error(f'Failed to parse response JSON: {r.text}')
             self.tcex.log.error(f'Failed to parse details JSON for pulse {pulse_id}.')
             return None
 
