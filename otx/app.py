@@ -232,6 +232,62 @@ class App(JobApp):
 
         return group
 
+    def _generate_xid(self, entity: dict) -> str:
+        """Generate a unique XID for a entity."""
+        return self.batch.generate_xid([self.in_.tc_owner, entity['type'], entity['name']])
+
+    def _normalize_group_batch(self, group: dict) -> dict:
+        """Normalize a group for batch creation."""
+        xid = self._generate_xid(group)
+        group['xid'] = xid
+        group_batch = {
+                'name': group['name']
+                , 'type': group['type']
+                , 'xid': xid
+            }
+
+        if group.get('attributes', None):
+            group_batch['attribute'] = group['attributes']
+
+        if group.get('tags', None):
+            group_batch['tag'] = group['tags']
+
+        if group.get('associatedGroupXid', None):
+            group_batch['associatedGroupXid'] = group['associatedGroupXid']
+
+        return group_batch
+
+    def _normalize_indicator_batch(self, indicator: dict) -> dict:
+        """Normalize an indicator for batch creation."""
+        indicator_batch = {
+            'type': indicator['type'],
+            'summary': indicator['summary'],
+            'xid': self._generate_xid(indicator)
+        }
+
+        if indicator.get('associatedGroups', None):
+            indicator_batch['associatedGroupXid'] = indicator['associatedGroupXid']
+
+        return indicator_batch
+
+    def _batch_create_groups(self, groups: List[dict]):
+        """Batch create groups."""
+        for group in groups:
+            group_batch = self._normalize_group_batch(group)
+            self.batch.add_group(group_batch)
+
+        self.batch.create_groups(groups)
+        self.tcex.log.info(f'Created {len(groups)} groups.')
+
+    def _batch_create_indicators(self, indicators: List[dict]):
+        """Batch create indicators."""
+        for indicator in indicators:
+            indicator_batch = self._normalize_indicator_batch(indicator)
+            self.batch.add_indicator(indicator_batch)
+
+        self.batch.create_indicators(indicators)
+        self.tcex.log.info(f'Created {len(indicators)} indicators.')
+
     def run(self):
         """Run main App logic."""
         last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
@@ -290,7 +346,20 @@ class App(JobApp):
                 # DEBUG: For testing purposes, break after the first pulse
                 break
 
-            
-                
+            for group in pulse_details:
+                self._batch_create_groups([group])
+
+                associated_groups = group.get('associated_groups', None)
+                associated_indicators = group.get('associated_indicators', None)
+
+                if associated_groups:
+                    for associated_group in associated_groups:
+                        associated_group['associatedGroupXid'] = [group['xid']]
+                    self._batch_create_groups(associated_groups)
+
+                if associated_indicators:
+                    for indicator in associated_indicators:
+                        indicator['associatedGroups'] = [{'groupXid': group['xid']}]
+                    self._batch_create_indicators(associated_indicators)
 
             self.tcex.log.info(f'Fetched details for {len(pulse_details)} pulses.')
