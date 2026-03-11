@@ -3,6 +3,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from uuid import uuid5, NAMESPACE_URL
 
 from tcex import TcEx
 from tcex.exit import ExitCode
@@ -132,7 +133,7 @@ class App(JobApp):
         # Core metadata
         pulse_id = detail.get('id')
         name = detail.get('name')
-        xid = f'{self.in_.tc_owner}:Report:{name}'
+        xid = str(uuid5(NAMESPACE_URL, f'{self.in_.tc_owner}:Report:{name}'))
         description = detail.get('description')
         author_name = detail.get('author_name')
         modified = detail.get('modified')
@@ -140,12 +141,12 @@ class App(JobApp):
         tlp = detail.get('TLP')
 
         # High-level lists
-        tags = detail.get('tags', []) or []
-        references = detail.get('references', []) or []
-        attack_ids = detail.get('attack_ids', []) or []
-        targeted_countries = detail.get('targeted_countries', []) or []
-        malware_families = detail.get('malware_families', []) or []
-        industries = detail.get('industries', []) or []
+        tags = detail.get('tags', [])
+        references = detail.get('references', [])
+        attack_ids = detail.get('attack_ids', [])
+        targeted_countries = detail.get('targeted_countries', [])
+        malware_families = detail.get('malware_families', [])
+        industries = detail.get('industries', [])
 
         # Author object
         author = detail.get('author') or {}
@@ -154,7 +155,7 @@ class App(JobApp):
         author_avatar_url = author.get('avatar_url')
 
         # Raw indicators
-        indicators = detail.get('indicators', []) or []
+        indicators = detail.get('indicators', [])
 
         # Derived indicator groupings
         domain_indicators = [
@@ -172,6 +173,22 @@ class App(JobApp):
             for i in indicators
             if i.get('type') == 'FileHash-SHA256'
         ]
+
+        all_tags: set[str] = set()
+        all_tags.update(tags)
+        all_tags.update(attack_ids)
+        all_tags.update(targeted_countries)
+        all_tags.update(malware_families)
+        all_tags.update(industries)
+
+        attributes = []
+
+        group = {
+            'xid': xid,
+            'name': name,
+            'description': description,
+            'tags': all_tags
+        }
 
         # Return structure is intentionally simple; adjust keys as needed.
         return {
