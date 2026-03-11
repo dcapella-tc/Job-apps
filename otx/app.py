@@ -68,80 +68,6 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     return str(next_token) if next_token is not None else None
 
 
-def extract_pulse_detail_fields(detail: dict) -> dict:
-    """Extract fields from a pulse detail payload.
-
-    This helper pulls values into individual variables so they can be
-    easily adjusted or remapped later.
-    """
-    # Core metadata
-    pulse_id = detail.get('id')
-    name = detail.get('name')
-    description = detail.get('description')
-    author_name = detail.get('author_name')
-    modified = detail.get('modified')
-    created = detail.get('created')
-    tlp = detail.get('TLP')
-
-    # High-level lists
-    tags = detail.get('tags', []) or []
-    references = detail.get('references', []) or []
-    attack_ids = detail.get('attack_ids', []) or []
-    targeted_countries = detail.get('targeted_countries', []) or []
-    malware_families = detail.get('malware_families', []) or []
-    industries = detail.get('industries', []) or []
-
-    # Author object
-    author = detail.get('author') or {}
-    author_username = author.get('username')
-    author_id = author.get('id')
-    author_avatar_url = author.get('avatar_url')
-
-    # Raw indicators
-    indicators = detail.get('indicators', []) or []
-
-    # Derived indicator groupings
-    domain_indicators = [
-        i.get('indicator')
-        for i in indicators
-        if (i.get('type') or '').lower() == 'domain'
-    ]
-    filehash_md5_indicators = [
-        i.get('indicator')
-        for i in indicators
-        if i.get('type') == 'FileHash-MD5'
-    ]
-    filehash_sha256_indicators = [
-        i.get('indicator')
-        for i in indicators
-        if i.get('type') == 'FileHash-SHA256'
-    ]
-
-    # Return structure is intentionally simple; adjust keys as needed.
-    return {
-        'id': pulse_id,
-        'name': name,
-        'description': description,
-        'author_name': author_name,
-        'modified': modified,
-        'created': created,
-        'tlp': tlp,
-        'tags': tags,
-        'references': references,
-        'attack_ids': attack_ids,
-        'targeted_countries': targeted_countries,
-        'malware_families': malware_families,
-        'industries': industries,
-        'author_username': author_username,
-        'author_id': author_id,
-        'author_avatar_url': author_avatar_url,
-        'domains': domain_indicators,
-        'filehash_md5': filehash_md5_indicators,
-        'filehash_sha256': filehash_sha256_indicators,
-        'indicators_raw': indicators,
-    }
-
-
 class App(JobApp):
     """Job App"""
 
@@ -197,6 +123,80 @@ class App(JobApp):
 
         return payload
 
+    def _extract_pulse_detail_fields(self, detail: dict) -> dict:
+        """Extract fields from a pulse detail payload.
+
+        This helper pulls values into individual variables so they can be
+        easily adjusted or remapped later.
+        """
+        # Core metadata
+        pulse_id = detail.get('id')
+        name = detail.get('name')
+        xid = f'{self.in_.tc_owner}:Report:{name}'
+        description = detail.get('description')
+        author_name = detail.get('author_name')
+        modified = detail.get('modified')
+        created = detail.get('created')
+        tlp = detail.get('TLP')
+
+        # High-level lists
+        tags = detail.get('tags', []) or []
+        references = detail.get('references', []) or []
+        attack_ids = detail.get('attack_ids', []) or []
+        targeted_countries = detail.get('targeted_countries', []) or []
+        malware_families = detail.get('malware_families', []) or []
+        industries = detail.get('industries', []) or []
+
+        # Author object
+        author = detail.get('author') or {}
+        author_username = author.get('username')
+        author_id = author.get('id')
+        author_avatar_url = author.get('avatar_url')
+
+        # Raw indicators
+        indicators = detail.get('indicators', []) or []
+
+        # Derived indicator groupings
+        domain_indicators = [
+            i.get('indicator')
+            for i in indicators
+            if (i.get('type') or '').lower() == 'domain'
+        ]
+        filehash_md5_indicators = [
+            i.get('indicator')
+            for i in indicators
+            if i.get('type') == 'FileHash-MD5'
+        ]
+        filehash_sha256_indicators = [
+            i.get('indicator')
+            for i in indicators
+            if i.get('type') == 'FileHash-SHA256'
+        ]
+
+        # Return structure is intentionally simple; adjust keys as needed.
+        return {
+            'id': pulse_id,
+            'name': name,
+            'description': description,
+            'author_name': author_name,
+            'modified': modified,
+            'created': created,
+            'tlp': tlp,
+            'tags': tags,
+            'references': references,
+            'attack_ids': attack_ids,
+            'targeted_countries': targeted_countries,
+            'malware_families': malware_families,
+            'industries': industries,
+            'author_username': author_username,
+            'author_id': author_id,
+            'author_avatar_url': author_avatar_url,
+            'domains': domain_indicators,
+            'filehash_md5': filehash_md5_indicators,
+            'filehash_sha256': filehash_sha256_indicators,
+            'indicators_raw': indicators,
+        }
+
     def run(self):
         """Run main App logic."""
         last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
@@ -249,7 +249,7 @@ class App(JobApp):
             for pulse_id in all_pulse_ids:
                 detail = self._fetch_pulse_detail(s, pulse_id)
                 if detail is not None:
-                    fields = extract_pulse_detail_fields(detail)
+                    fields = self._extract_pulse_detail_fields(detail)
                     pulse_details.append(fields)
                 
                 # DEBUG: For testing purposes, break after the first pulse
