@@ -106,6 +106,22 @@ class App(JobApp):
 
         return payload
 
+    def _fetch_pulse_detail(self, session, pulse_id: str) -> Optional[dict]:
+        """Fetch details for a single pulse ID."""
+        url = f'/pulses/subscribed/{pulse_id}'
+        r = session.get(url)
+        if not r.ok:
+            self.tcex.log.error(f'Failed to download details for pulse {pulse_id}.')
+            return None
+
+        try:
+            payload = r.json()
+        except Exception:  # pragma: no cover - defensive programming
+            self.tcex.log.error(f'Failed to parse details JSON for pulse {pulse_id}.')
+            return None
+
+        return payload
+
     def run(self):
         """Run main App logic."""
         last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
@@ -149,4 +165,14 @@ class App(JobApp):
                 # After the first request, rely on the next URL for pagination.
                 params = None
 
-        self.tcex.log.info(f'Extracted {len(all_pulse_ids)} pulses across all pages.')
+            self.tcex.log.info(f'Extracted {len(all_pulse_ids)} pulses across all pages.')
+
+            pulse_details: List[dict] = []
+            for pulse_id in all_pulse_ids:
+                detail = self._fetch_pulse_detail(s, pulse_id)
+                if detail is not None:
+                    pulse_details.append(detail)
+
+            if pulse_details:
+                self.tcex.log.debug(f'First pulse detail payload: {pulse_details[0]!r}')
+            self.tcex.log.info(f'Fetched details for {len(pulse_details)} pulses.')
