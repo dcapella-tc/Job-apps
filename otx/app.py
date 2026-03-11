@@ -174,7 +174,7 @@ class App(JobApp):
         modified = detail.get('modified')
         created = detail.get('created')
         tlp = detail.get('TLP')
-        adversary = detail.get('adversary')
+        adversary = {'name':detail.get('adversary'), 'type': 'Adversary'}
 
         # High-level lists
         tags = detail.get('tags', [])
@@ -231,6 +231,7 @@ class App(JobApp):
             'attributes': attributes,
             'associated_groups': [adversary],
             'associated_indicators': associated_indicators,
+            'type': 'Report',
         }
 
         return group
