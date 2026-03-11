@@ -69,9 +69,12 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     next_token = pulses_json.get('next')
     return str(next_token) if next_token is not None else None
 
+def list_to_html_list(header: str,rows: List[str]) -> str:
+    return f"<b>{header}</b><ul>{''.join(f'<li>{row}</li>' for row in rows)}</ul>"
+
 def list_to_html_table(
-    rows: Union[List[str], List[List[str]]],
     header: Union[str, List[str]],
+    rows: Union[List[str], List[List[str]]],
 ) -> str:
     """Build an HTML table. If header is a list, table has multiple columns; rows must be list of row lists."""
     if isinstance(header, list):
@@ -150,12 +153,12 @@ class App(JobApp):
         # Core metadata
         pulse_id = detail.get('id')
         name = detail.get('name')
-        xid = str(uuid5(NAMESPACE_URL, f'{self.in_.tc_owner}:Report:{name}'))
         description = detail.get('description')
         author_name = detail.get('author_name')
         modified = detail.get('modified')
         created = detail.get('created')
         tlp = detail.get('TLP')
+        adversary = detail.get('adversary')
 
         # High-level lists
         tags = detail.get('tags', [])
@@ -198,6 +201,8 @@ class App(JobApp):
         all_tags.update(malware_families)
         all_tags.update(naics_tags_for_keyword(industries))
 
+        external_details = list_to_html_list("Author",[author_id, author_username, author_avatar_url])
+
         attributes = [
             {"type": "Description", "value": description, "displayed": True},
             {"type": "Author", "value": author_name},
@@ -205,46 +210,22 @@ class App(JobApp):
             {"type": "External Date Created", "value": created},
             {"type": "TLP", "value": tlp},
             {"type": "Tags", "value": all_tags},
-            {"type": "References", "value": list_to_html_table(references, "Reference")},
-            {"type": "Author Username", "value": author_username},
-            {"type": "Author ID", "value": author_id},
-            {"type": "Author Avatar URL", "value": author_avatar_url},
+            {"type": "External Reference", "value": list_to_html_table("Reference", references)},
+            {"type": "External Details", "value": external_details},
             {"type": "External ID", "value": pulse_id},
-            {"type": "External Reference", "value": references}
         ]
         for country in targeted_countries:
             attributes.append({"type": "GeoCountry Targeted", "value": country})
 
         group = {
-            'xid': xid,
             'name': name,
             'description': description,
-            'tags': all_tags
+            'tags': all_tags,
+            'attributes': attributes,
+            'associated_groups': [adversary],
         }
 
-        # Return structure is intentionally simple; adjust keys as needed.
-        return {
-            'id': pulse_id,
-            'name': name,
-            'description': description,
-            'author_name': author_name,
-            'modified': modified,
-            'created': created,
-            'tlp': tlp,
-            'tags': tags,
-            'references': references,
-            'attack_ids': attack_ids,
-            'targeted_countries': targeted_countries,
-            'malware_families': malware_families,
-            'industries': industries,
-            'author_username': author_username,
-            'author_id': author_id,
-            'author_avatar_url': author_avatar_url,
-            'domains': domain_indicators,
-            'filehash_md5': filehash_md5_indicators,
-            'filehash_sha256': filehash_sha256_indicators,
-            'indicators_raw': indicators,
-        }
+        return group
 
     def run(self):
         """Run main App logic."""
