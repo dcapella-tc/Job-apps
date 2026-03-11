@@ -89,6 +89,19 @@ def list_to_html_table(
         rows_html = "".join(f"<tr><td>{row}</td></tr>" for row in rows)
     return f"<table>{header_html}{rows_html}</table>"
 
+def indicator_type_mapping(indicator_type: str) -> str:
+    return {
+        'domain': 'Host',
+        'hostname': 'Host',
+        'filehash-md5': 'File',
+        'filehash-sha1': 'File',
+        'filehash-sha256': 'File',
+        'ipv4': 'Address',
+        'ipv6': 'Address',
+        'url': 'URL',
+        'email': 'EmailAddress',
+    }.get(indicator_type.lower(), indicator_type)
+
 class App(JobApp):
     """Job App"""
 
@@ -178,21 +191,12 @@ class App(JobApp):
         indicators = detail.get('indicators', [])
 
         # Derived indicator groupings
-        domain_indicators = [
-            i.get('indicator')
-            for i in indicators
-            if (i.get('type') or '').lower() == 'domain'
-        ]
-        filehash_md5_indicators = [
-            i.get('indicator')
-            for i in indicators
-            if i.get('type') == 'FileHash-MD5'
-        ]
-        filehash_sha256_indicators = [
-            i.get('indicator')
-            for i in indicators
-            if i.get('type') == 'FileHash-SHA256'
-        ]
+        associated_indicators = []
+        for indicator in indicators:
+            associated_indicators.append({
+                'type': indicator_type_mapping(indicator.get('type')),
+                'summary': indicator.get('indicator'),
+            })
 
         all_tags: set[str] = set()
         all_tags.update(tags)
@@ -223,6 +227,7 @@ class App(JobApp):
             'tags': all_tags,
             'attributes': attributes,
             'associated_groups': [adversary],
+            'associated_indicators': associated_indicators,
         }
 
         return group
@@ -285,7 +290,7 @@ class App(JobApp):
                 # DEBUG: For testing purposes, break after the first pulse
                 break
 
+            
+                
 
-            if pulse_details:
-                self.tcex.log.debug(f'First pulse detail payload: {pulse_details[0]!r}')
             self.tcex.log.info(f'Fetched details for {len(pulse_details)} pulses.')
