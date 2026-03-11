@@ -6,7 +6,15 @@ import types
 
 import pytest
 
-from app import App, parse_last_run
+from app import (
+    App,
+    extract_next_token,
+    extract_pulse_ids,
+    indicator_type_mapping,
+    list_to_html_list,
+    list_to_html_table,
+    parse_last_run,
+)
 from naics import naics_tags_for_keyword
 
 
@@ -102,7 +110,7 @@ def test_fetch_pulse_detail_calls_correct_url_and_exposes_payload():
 
     # Verify list and detail endpoints were called
     assert external_session.get.call_args_list[0][0][0] == '/pulses/subscribed'
-    assert external_session.get.call_args_list[1][0][0] == '/pulses/subscribed/123'
+    assert external_session.get.call_args_list[1][0][0] == '/pulses/123'
 
     # Verify the detail payload was surfaced in debug logging
     debug_calls = [str(call.args[0]) for call in tcex.log.debug.call_args_list]
@@ -120,3 +128,158 @@ def test_naics_tags_for_keyword_empty_returns_empty():
     """naics_tags_for_keyword with empty or whitespace returns []."""
     assert naics_tags_for_keyword('') == []
     assert naics_tags_for_keyword('   ') == []
+
+
+def test_extract_pulse_ids_mixed():
+    """extract_pulse_ids returns string ids from results; skips items without id."""
+    payload = {'results': [{'id': '1'}, {'id': 2}, {'name': 'x'}]}
+    assert extract_pulse_ids(payload) == ['1', '2']
+
+
+def test_extract_pulse_ids_empty_or_missing():
+    """extract_pulse_ids returns [] for empty or missing results."""
+    assert extract_pulse_ids({'results': []}) == []
+    assert extract_pulse_ids({}) == []
+
+
+def test_extract_next_token_present():
+    """extract_next_token returns the next URL when present."""
+    payload = {'next': 'https://example.com?page=2'}
+    assert extract_next_token(payload) == 'https://example.com?page=2'
+
+
+def test_extract_next_token_absent():
+    """extract_next_token returns None when next is missing."""
+    assert extract_next_token({}) is None
+    assert extract_next_token({'results': []}) is None
+
+
+def test_list_to_html_list():
+    """list_to_html_list produces header and list items."""
+    out = list_to_html_list('Header', ['a', 'b'])
+    assert '<b>Header</b>' in out
+    assert '<ul>' in out
+    assert '<li>a</li>' in out
+    assert '<li>b</li>' in out
+
+
+def test_list_to_html_table_single_column():
+    """list_to_html_table with str header produces one column."""
+    out = list_to_html_table('Col', ['a', 'b'])
+    assert '<th>Col</th>' in out
+    assert '<td>a</td>' in out
+    assert '<td>b</td>' in out
+    assert out.startswith('<table>')
+
+
+def test_list_to_html_table_two_columns():
+    """list_to_html_table with list header produces multiple columns."""
+    out = list_to_html_table(['A', 'B'], [['1', '2'], ['3', '4']])
+    assert '<th>A</th>' in out
+    assert '<th>B</th>' in out
+    assert '<td>1</td>' in out and '<td>2</td>' in out
+    assert '<td>3</td>' in out and '<td>4</td>' in out
+
+
+def test_indicator_type_mapping_known():
+    """indicator_type_mapping maps known types to TC types."""
+    assert indicator_type_mapping('domain') == 'Host'
+    assert indicator_type_mapping('filehash-md5') == 'File'
+    assert indicator_type_mapping('ipv4') == 'Address'
+    assert indicator_type_mapping('url') == 'URL'
+
+
+def test_indicator_type_mapping_unknown():
+    """indicator_type_mapping returns original for unknown (case-insensitive)."""
+    assert indicator_type_mapping('unknown') == 'unknown'
+    assert indicator_type_mapping('URL') == 'URL'
+
+
+@pytest.fixture
+def app_with_batch():
+    """App instance with mocked tcex and batch for method tests."""
+    tcex = MagicMock()
+    tcex.log.info = MagicMock()
+    tcex.log.error = MagicMock()
+    tcex.log.debug = MagicMock()
+    tcex.exit.exit = MagicMock()
+    in_ = types.SimpleNamespace(tc_owner='MyOrg', otx_api_key='key', last_run='7 Days Ago')
+    batch = MagicMock()
+    batch.generate_xid.return_value = 'MyOrg::Report::TestName'
+    app = App(tcex)
+    app.in_ = in_
+    app.batch = batch
+    return app
+
+
+def test_generate_xid_calls_batch_with_owner_type_name(app_with_batch):
+    """_generate_xid calls batch.generate_xid with [tc_owner, type, name] and returns value."""
+    result = app_with_batch._generate_xid({'type': 'Report', 'name': 'TestName'})
+    app_with_batch.batch.generate_xid.assert_called_once_with(
+        ['MyOrg', 'Report', 'TestName']
+    )
+    assert result == 'MyOrg::Report::TestName'
+
+
+def test_normalize_group_batch(app_with_batch):
+    """_normalize_group_batch produces batch dict with xid, name, type, optional attribute/tag."""
+    group = {
+        'name': 'G1',
+        'type': 'Report',
+        'attributes': [{'type': 'Description', 'value': 'd'}],
+        'tags': {'tag1'},
+        'associatedGroupXid': ['xid2'],
+    }
+    out = app_with_batch._normalize_group_batch(group)
+    assert out['xid'] == 'MyOrg::Report::TestName'
+    assert out['name'] == 'G1'
+    assert out['type'] == 'Report'
+    assert out['attribute'] == [{'type': 'Description', 'value': 'd'}]
+    assert out['tag'] == {'tag1'}
+    assert out['associatedGroupXid'] == ['xid2']
+
+
+def test_normalize_indicator_batch(app_with_batch):
+    """_normalize_indicator_batch produces batch dict with type, summary, xid."""
+    indicator = {'type': 'Host', 'summary': 'example.com', 'name': 'example.com'}
+    out = app_with_batch._normalize_indicator_batch(indicator)
+    assert out['type'] == 'Host'
+    assert out['summary'] == 'example.com'
+    assert out['xid'] == 'MyOrg::Report::TestName'
+    app_with_batch.batch.generate_xid.assert_called_with(
+        ['MyOrg', 'Host', 'example.com']
+    )
+
+
+def test_extract_pulse_detail_fields_returns_group_with_attributes_and_indicators(
+    app_with_batch,
+):
+    """_extract_pulse_detail_fields returns group with name, description, tags, attributes, associated_indicators."""
+    detail = {
+        'id': 'pid1',
+        'name': 'Pulse Name',
+        'description': 'Desc',
+        'author_name': 'Author',
+        'modified': '2026-01-01',
+        'created': '2026-01-02',
+        'TLP': 'white',
+        'tags': ['t1'],
+        'references': ['https://ref'],
+        'attack_ids': [],
+        'targeted_countries': [],
+        'malware_families': [],
+        'industries': [],
+        'author': {'username': 'u', 'id': '2', 'avatar_url': '/url'},
+        'indicators': [{'type': 'domain', 'indicator': 'example.com'}],
+    }
+    group = app_with_batch._extract_pulse_detail_fields(detail)
+    assert group['name'] == 'Pulse Name'
+    assert group['description'] == 'Desc'
+    assert 't1' in group['tags']
+    assert group['associated_indicators'] == [
+        {'type': 'Host', 'summary': 'example.com'}
+    ]
+    attr_types = [a['type'] for a in group['attributes']]
+    assert 'Description' in attr_types
+    assert 'Author' in attr_types
+    assert 'External ID' in attr_types
