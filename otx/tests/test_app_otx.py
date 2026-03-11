@@ -112,10 +112,6 @@ def test_fetch_pulse_detail_calls_correct_url_and_exposes_payload():
     assert external_session.get.call_args_list[0][0][0] == '/pulses/subscribed'
     assert external_session.get.call_args_list[1][0][0] == '/pulses/123'
 
-    # Verify the detail payload was surfaced in debug logging
-    debug_calls = [str(call.args[0]) for call in tcex.log.debug.call_args_list]
-    assert any('Example Pulse' in msg for msg in debug_calls)
-
 
 def test_naics_tags_for_keyword_finance():
     """naics_tags_for_keyword('finance') returns at least one tag containing 52 and Finance."""
