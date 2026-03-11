@@ -2,13 +2,14 @@
 
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import uuid5, NAMESPACE_URL
 
 from tcex import TcEx
 from tcex.exit import ExitCode
 
 from job_app import JobApp  # Import default Job App Class (Required)
+from naics import naics_tags_for_keyword
 
 # Match "N Days Ago" or "N Day Ago" (case-insensitive)
 _DAYS_AGO_RE = re.compile(r'^\s*(\d+)\s+days?\s+ago\s*$', re.IGNORECASE)
@@ -68,9 +69,21 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     next_token = pulses_json.get('next')
     return str(next_token) if next_token is not None else None
 
-def list_to_html_table(rows: list[str], header: str) -> str:
-    header_html = f"<tr><th>{header}</th></tr>"
-    rows_html = rows.join("<tr><td>{row}</td></tr>")
+def list_to_html_table(
+    rows: Union[List[str], List[List[str]]],
+    header: Union[str, List[str]],
+) -> str:
+    """Build an HTML table. If header is a list, table has multiple columns; rows must be list of row lists."""
+    if isinstance(header, list):
+        header_html = "".join(f"<th>{h}</th>" for h in header)
+        header_html = f"<tr>{header_html}</tr>"
+        rows_html = "".join(
+            "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
+            for row in rows
+        )
+    else:
+        header_html = f"<tr><th>{header}</th></tr>"
+        rows_html = "".join(f"<tr><td>{row}</td></tr>" for row in rows)
     return f"<table>{header_html}{rows_html}</table>"
 
 class App(JobApp):
@@ -183,7 +196,7 @@ class App(JobApp):
         all_tags.update(attack_ids)
         all_tags.update(targeted_countries)
         all_tags.update(malware_families)
-        all_tags.update(industries)
+        all_tags.update(naics_tags_for_keyword(industries))
 
         attributes = [
             {"type": "Description", "value": description, "displayed": True},
@@ -193,16 +206,14 @@ class App(JobApp):
             {"type": "TLP", "value": tlp},
             {"type": "Tags", "value": all_tags},
             {"type": "References", "value": list_to_html_table(references, "Reference")},
-            {"type": "Attack IDs", "value": attack_ids},
-            {"type": "Targeted Countries", "value": targeted_countries},
-            {"type": "Malware Families", "value": malware_families},
-            {"type": "Industries", "value": industries},
             {"type": "Author Username", "value": author_username},
             {"type": "Author ID", "value": author_id},
             {"type": "Author Avatar URL", "value": author_avatar_url},
             {"type": "External ID", "value": pulse_id},
             {"type": "External Reference", "value": references}
         ]
+        for country in targeted_countries:
+            attributes.append({"type": "GeoCountry Targeted", "value": country})
 
         group = {
             'xid': xid,
