@@ -68,6 +68,80 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     return str(next_token) if next_token is not None else None
 
 
+def extract_pulse_detail_fields(detail: dict) -> dict:
+    """Extract fields from a pulse detail payload.
+
+    This helper pulls values into individual variables so they can be
+    easily adjusted or remapped later.
+    """
+    # Core metadata
+    pulse_id = detail.get('id')
+    name = detail.get('name')
+    description = detail.get('description')
+    author_name = detail.get('author_name')
+    modified = detail.get('modified')
+    created = detail.get('created')
+    tlp = detail.get('TLP')
+
+    # High-level lists
+    tags = detail.get('tags', []) or []
+    references = detail.get('references', []) or []
+    attack_ids = detail.get('attack_ids', []) or []
+    targeted_countries = detail.get('targeted_countries', []) or []
+    malware_families = detail.get('malware_families', []) or []
+    industries = detail.get('industries', []) or []
+
+    # Author object
+    author = detail.get('author') or {}
+    author_username = author.get('username')
+    author_id = author.get('id')
+    author_avatar_url = author.get('avatar_url')
+
+    # Raw indicators
+    indicators = detail.get('indicators', []) or []
+
+    # Derived indicator groupings
+    domain_indicators = [
+        i.get('indicator')
+        for i in indicators
+        if (i.get('type') or '').lower() == 'domain'
+    ]
+    filehash_md5_indicators = [
+        i.get('indicator')
+        for i in indicators
+        if i.get('type') == 'FileHash-MD5'
+    ]
+    filehash_sha256_indicators = [
+        i.get('indicator')
+        for i in indicators
+        if i.get('type') == 'FileHash-SHA256'
+    ]
+
+    # Return structure is intentionally simple; adjust keys as needed.
+    return {
+        'id': pulse_id,
+        'name': name,
+        'description': description,
+        'author_name': author_name,
+        'modified': modified,
+        'created': created,
+        'tlp': tlp,
+        'tags': tags,
+        'references': references,
+        'attack_ids': attack_ids,
+        'targeted_countries': targeted_countries,
+        'malware_families': malware_families,
+        'industries': industries,
+        'author_username': author_username,
+        'author_id': author_id,
+        'author_avatar_url': author_avatar_url,
+        'domains': domain_indicators,
+        'filehash_md5': filehash_md5_indicators,
+        'filehash_sha256': filehash_sha256_indicators,
+        'indicators_raw': indicators,
+    }
+
+
 class App(JobApp):
     """Job App"""
 
@@ -108,10 +182,11 @@ class App(JobApp):
 
     def _fetch_pulse_detail(self, session, pulse_id: str) -> Optional[dict]:
         """Fetch details for a single pulse ID."""
-        url = f'/pulses/subscribed/{pulse_id}'
+        url = f'/pulses/{pulse_id}'
         r = session.get(url)
         if not r.ok:
-            self.tcex.log.error(f'Failed to download details for pulse {pulse_id}.')
+            self.tcex.log.error(f'Response Code: {r.status_code}\nResponse Text: {r.text}')
+            self.tcex.exit.exit(ExitCode.FAILURE, f'Failed to download details for pulse {pulse_id}.')
             return None
 
         try:
@@ -165,13 +240,21 @@ class App(JobApp):
                 # After the first request, rely on the next URL for pagination.
                 params = None
 
+                # DEBUG: For testing purposes, break after the first page
+                break
+
             self.tcex.log.info(f'Extracted {len(all_pulse_ids)} pulses across all pages.')
 
             pulse_details: List[dict] = []
             for pulse_id in all_pulse_ids:
                 detail = self._fetch_pulse_detail(s, pulse_id)
                 if detail is not None:
-                    pulse_details.append(detail)
+                    fields = extract_pulse_detail_fields(detail)
+                    pulse_details.append(fields)
+                
+                # DEBUG: For testing purposes, break after the first pulse
+                break
+
 
             if pulse_details:
                 self.tcex.log.debug(f'First pulse detail payload: {pulse_details[0]!r}')
