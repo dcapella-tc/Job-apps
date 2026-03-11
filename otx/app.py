@@ -91,6 +91,21 @@ class App(JobApp):
             }
         )
 
+    def _fetch_pulses_page(self, session, url: str, params: Optional[dict] = None) -> Optional[dict]:
+        """Fetch a single pulses page and return the parsed JSON payload."""
+        r = session.get(url, params=params)
+        if not r.ok:
+            self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to download data.')
+            return None
+
+        try:
+            payload = r.json()
+        except Exception:  # pragma: no cover - defensive programming
+            self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to parse response JSON.')
+            return None
+
+        return payload
+
     def run(self):
         """Run main App logic."""
         last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
@@ -101,26 +116,37 @@ class App(JobApp):
             return
         modified_since_iso = last_run_dt.isoformat().replace('+00:00', 'Z')
 
+        all_pulse_ids: List[str] = []
+        next_url: Optional[str] = '/pulses/subscribed'
+        params: Optional[dict] = {'page': 1, 'modified_since': modified_since_iso}
+
         with self.tcex.session.external as s:
-            r = s.get(
-                '/pulses/subscribed',
-                params={'page': 1, 'modified_since': modified_since_iso},
-            )
-            if not r.ok:
-                self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to download data.')
-                return
+            first_page = True
+            while next_url:
+                # If next_url is absolute, rely on it entirely; otherwise treat as relative path.
+                if next_url.startswith('http'):
+                    url = next_url
+                    page_params = None
+                else:
+                    url = next_url
+                    page_params = params
 
-            self.tcex.log.info('Data downloaded successfully.')
+                payload = self._fetch_pulses_page(s, url, page_params)
+                if payload is None:
+                    return
 
-            try:
-                payload = r.json()
-            except Exception:  # pragma: no cover - defensive programming
-                self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to parse response JSON.')
-                return
+                if first_page:
+                    self.tcex.log.info('Data downloaded successfully.')
+                    first_page = False
 
-            pulse_ids = extract_pulse_ids(payload)
-            next_token = extract_next_token(payload)
+                page_pulse_ids = extract_pulse_ids(payload)
+                all_pulse_ids.extend(page_pulse_ids)
 
-            self.tcex.log.info(f'Extracted {len(pulse_ids)} pulses.')
-            if next_token:
-                self.tcex.log.info(f'Next page token: {next_token}')
+                next_url = extract_next_token(payload)
+                if next_url:
+                    self.tcex.log.info(f'Next page token: {next_url}')
+
+                # After the first request, rely on the next URL for pagination.
+                params = None
+
+        self.tcex.log.info(f'Extracted {len(all_pulse_ids)} pulses across all pages.')
