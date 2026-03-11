@@ -68,6 +68,10 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     next_token = pulses_json.get('next')
     return str(next_token) if next_token is not None else None
 
+def list_to_html_table(rows: list[str], header: str) -> str:
+    header_html = f"<tr><th>{header}</th></tr>"
+    rows_html = rows.join("<tr><td>{row}</td></tr>")
+    return f"<table>{header_html}{rows_html}</table>"
 
 class App(JobApp):
     """Job App"""
@@ -181,7 +185,24 @@ class App(JobApp):
         all_tags.update(malware_families)
         all_tags.update(industries)
 
-        attributes = []
+        attributes = [
+            {"type": "Description", "value": description, "displayed": True},
+            {"type": "Author", "value": author_name},
+            {"type": "External Date Last Modified", "value": modified},
+            {"type": "External Date Created", "value": created},
+            {"type": "TLP", "value": tlp},
+            {"type": "Tags", "value": all_tags},
+            {"type": "References", "value": list_to_html_table(references, "Reference")},
+            {"type": "Attack IDs", "value": attack_ids},
+            {"type": "Targeted Countries", "value": targeted_countries},
+            {"type": "Malware Families", "value": malware_families},
+            {"type": "Industries", "value": industries},
+            {"type": "Author Username", "value": author_username},
+            {"type": "Author ID", "value": author_id},
+            {"type": "Author Avatar URL", "value": author_avatar_url},
+            {"type": "External ID", "value": pulse_id},
+            {"type": "External Reference", "value": references}
+        ]
 
         group = {
             'xid': xid,

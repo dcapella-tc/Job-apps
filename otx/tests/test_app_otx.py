@@ -7,6 +7,7 @@ import types
 import pytest
 
 from app import App, parse_last_run
+from naics import naics_tags_for_keyword
 
 
 def test_parse_last_run_days_ago():
@@ -106,3 +107,16 @@ def test_fetch_pulse_detail_calls_correct_url_and_exposes_payload():
     # Verify the detail payload was surfaced in debug logging
     debug_calls = [str(call.args[0]) for call in tcex.log.debug.call_args_list]
     assert any('Example Pulse' in msg for msg in debug_calls)
+
+
+def test_naics_tags_for_keyword_finance():
+    """naics_tags_for_keyword('finance') returns at least one tag containing 52 and Finance."""
+    tags = naics_tags_for_keyword('finance')
+    assert len(tags) >= 1
+    assert any('52' in t and 'Finance' in t for t in tags)
+
+
+def test_naics_tags_for_keyword_empty_returns_empty():
+    """naics_tags_for_keyword with empty or whitespace returns []."""
+    assert naics_tags_for_keyword('') == []
+    assert naics_tags_for_keyword('   ') == []
