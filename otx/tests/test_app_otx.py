@@ -182,6 +182,80 @@ def test_run_persists_last_run_on_success():
     assert 'T' in value
 
 
+def test_second_run_uses_persisted_last_run():
+    """Second run uses the last_run value persisted by the first run as modified_since."""
+    # Run 1: complete successfully and persist last_run
+    tcex1 = MagicMock()
+    tcex1.api.tc.v2.batch.return_value = MagicMock()
+    external1 = MagicMock()
+    external1.__enter__.return_value = external1
+    external1.__exit__.return_value = False
+    tcex1.session.external = external1
+    tcex1.exit.exit = MagicMock()
+    tcex1.log.info = MagicMock()
+    tcex1.log.debug = MagicMock()
+    tcex1.app.results_tc = MagicMock()
+    in1 = types.SimpleNamespace(
+        tc_owner='Org', otx_api_key='API_KEY', last_run='7 Days Ago'
+    )
+    list_resp = MagicMock()
+    list_resp.ok = True
+    list_resp.json.return_value = {'results': [{'id': '123'}], 'next': None}
+    detail_resp = MagicMock()
+    detail_resp.ok = True
+    detail_resp.json.return_value = {
+        'id': '123',
+        'name': 'Example Pulse',
+        'indicators': [],
+    }
+    external1.get.side_effect = [list_resp, detail_resp]
+
+    app1 = App(tcex1)
+    app1.in_ = in1
+    app1.run()
+
+    calls = [c for c in tcex1.app.results_tc.call_args_list if c[0][0] == 'last_run']
+    assert len(calls) >= 1
+    persisted_iso = calls[0][0][1]
+
+    # Run 2: in_.last_run is the value persisted by run 1
+    tcex2 = MagicMock()
+    tcex2.api.tc.v2.batch.return_value = MagicMock()
+    external2 = MagicMock()
+    external2.__enter__.return_value = external2
+    external2.__exit__.return_value = False
+    tcex2.session.external = external2
+    tcex2.exit.exit = MagicMock()
+    tcex2.log.info = MagicMock()
+    tcex2.log.debug = MagicMock()
+    tcex2.app.results_tc = MagicMock()
+    in2 = types.SimpleNamespace(
+        tc_owner='Org', otx_api_key='API_KEY', last_run=persisted_iso
+    )
+    list_resp2 = MagicMock()
+    list_resp2.ok = True
+    list_resp2.json.return_value = {'results': [{'id': '123'}], 'next': None}
+    detail_resp2 = MagicMock()
+    detail_resp2.ok = True
+    detail_resp2.json.return_value = {
+        'id': '123',
+        'name': 'Example Pulse',
+        'indicators': [],
+    }
+    external2.get.side_effect = [list_resp2, detail_resp2]
+
+    app2 = App(tcex2)
+    app2.in_ = in2
+    app2.run()
+
+    second_run_params = external2.get.call_args_list[0][1].get('params', {})
+    assert 'modified_since' in second_run_params
+    # App normalizes to Z; allow same or equivalent
+    actual = second_run_params['modified_since']
+    expected_normalized = persisted_iso.replace('+00:00', 'Z')
+    assert actual == expected_normalized or actual == persisted_iso
+
+
 def test_fetch_pulse_detail_calls_correct_url_and_exposes_payload():
     """App.run should fetch per-pulse details for each extracted pulse ID."""
     tcex = MagicMock()
