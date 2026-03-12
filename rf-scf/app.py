@@ -16,6 +16,9 @@ INVALID_TIMESTAMP_MESSAGE = (
     'Example: "2017-05-03T14:38:02Z"'
 )
 
+# Algorithm name (lowercase) -> ioc_file attribute for hash
+ALGORITHM_HASH_ATTR = {'sha-256': 'sha256', 'sha-1': 'sha1', 'md5': 'md5'}
+
 
 def normalize_timestamp_to_iso8601_utc(value: Any) -> str:
     """Normalize a timestamp to an ISO 8601 UTC string with trailing Z.
@@ -121,39 +124,29 @@ class App(JobApp):
         )
 
         for entity in entities:
-            # Placeholder for future processing logic.
-            if entity.get('algorithm', '').lower() in ['sha-256', 'sha-1', 'md5']:
+            if entity.get('algorithm', '').lower() in ALGORITHM_HASH_ATTR:
                 candidate_entities += 1
+                ioc_file = self.batch.file()
 
-                indicator = {
-                    "xid": self.batch.generate_xid([self.in_.tc_owner, 'file', entity["hash"]]),
-                    "type": "file",
-                    "summary": entity["hash"],
-                }
-                if entity.get('lastSeen',''):
-                    try:
-                        last_seen_iso = normalize_timestamp_to_iso8601_utc(entity.get("lastSeen"))
-                    except ValueError as ex:
-                        self.tcex.log.error(
-                            'App.run: invalid lastSeen for hash %s: %r (%s)',
-                            entity.get("hash"),
-                            entity.get("lastSeen"),
-                            ex,
-                        )
-                        raise
-                    indicator["attribute"] = [{
-                        "type": "Last Seen",
-                        "value": last_seen_iso,
-                    }]
-                self.batch.add_indicator(indicator)
+                algo = entity.get('algorithm', '').lower()
+                hash_value = entity.get('hash')
+                if algo in ALGORITHM_HASH_ATTR:
+                    setattr(ioc_file, ALGORITHM_HASH_ATTR[algo], hash_value)
+                if entity.get('lastSeen'):
+                    last_seen_iso = normalize_timestamp_to_iso8601_utc(entity.get("lastSeen"))
+                    ioc_file.attribute('Last Seen', last_seen_iso)
+
+                self.batch.save(ioc_file)
                 indicators_added += 1
-        self.tcex.log.info(
-            'App.run: finished loop. total_entities=%d, candidate_entities=%d, indicators_added=%d',
-            total_entities,
-            candidate_entities,
-            indicators_added,
-        )
-        self.batch.submit_all()
-        self.tcex.log.info('App.run: batch submission complete.')
 
-        
+        batch_response = self.batch.submit_all()
+        self.batch.close()
+
+        errors = []
+        for item in batch_response:
+            errors.extend(item.get('errors', []))
+        if errors:
+            self.tcex.log.error('App.run: batch submission failed with %d errors', len(errors))
+            self.tcex.log.error('App.run: batch submission error: %s', errors[0])
+        self.tcex.log.info('App.run: batch submission complete.')
+        self.tcex.exit.exit(0, 'Batch submission complete.')
