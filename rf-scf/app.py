@@ -121,5 +121,7 @@ class App(JobApp):
                         }
                     ],
                 }
+                self.batch.add(indicator)
+        self.batch.submit_all()
 
         

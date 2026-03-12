@@ -1,6 +1,6 @@
 import pytest
 
-from app import INVALID_TIMESTAMP_MESSAGE, normalize_timestamp_to_iso8601_utc
+from app import (App, normalize_timestamp_to_iso8601_utc, INVALID_TIMESTAMP_MESSAGE)
 
 
 def test_normalize_timestamp_from_iso_string_round_trip():
