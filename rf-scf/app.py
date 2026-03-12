@@ -116,31 +116,42 @@ def load_potentially_abused_domains_sample(
 def iter_potentially_abused_domains_by_year(
     year: int = ABUSED_DOMAINS_YEAR,
     path: Path | None = None,
+    max_records: int | None = None,
 ) -> Iterator[dict]:
     """Stream domain records from the .gz file that have timestamp in the given year.
 
     Does not load the full array into memory; yields one record at a time.
     Year defaults to ABUSED_DOMAINS_YEAR (2026).
+    max_records caps output for memory safety; None means no limit.
     """
     if path is None:
         path = Path(__file__).parent / "tests" / "Potentially Abused Domains.gz"
     year_prefix = str(year)
+    n = 0
     with gzip.open(path, "rb") as f:
         for record in ijson.items(f, "results.item"):
             if record.get("timestamp", "").startswith(year_prefix):
                 yield record
+                n += 1
+                if max_records is not None and n >= max_records:
+                    return
 
 
 def load_potentially_abused_domains_for_year(
     year: int = ABUSED_DOMAINS_YEAR,
     path: Path | None = None,
+    max_records: int | None = None,
 ) -> list:
-    """Load all domain records from the .gz file for the given year into a list.
+    """Load domain records from the .gz file for the given year into a list.
 
-    Consumes the streaming iterator; can use significant memory if the year
-    has many records. Year defaults to ABUSED_DOMAINS_YEAR (2026).
+    Consumes the streaming iterator; without max_records the list can be very
+    large. Year defaults to ABUSED_DOMAINS_YEAR (2026).
     """
-    return list(iter_potentially_abused_domains_by_year(year=year, path=path))
+    return list(
+        iter_potentially_abused_domains_by_year(
+            year=year, path=path, max_records=max_records
+        )
+    )
 
 
 class App(JobApp):
