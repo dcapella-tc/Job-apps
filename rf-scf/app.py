@@ -4,7 +4,9 @@ import gzip
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+import ijson
 
 from tcex import TcEx
 from tcex.exit import Exit, ExitCode
@@ -19,6 +21,9 @@ INVALID_TIMESTAMP_MESSAGE = (
 
 # Algorithm name (lowercase) -> ioc_file attribute for hash
 ALGORITHM_HASH_ATTR = {'sha-256': 'sha256', 'sha-1': 'sha1', 'md5': 'md5'}
+
+# Year used for "this year" when filtering Potentially Abused Domains
+ABUSED_DOMAINS_YEAR = 2026
 
 
 def normalize_timestamp_to_iso8601_utc(value: Any) -> str:
@@ -106,6 +111,36 @@ def load_potentially_abused_domains_sample(
     with gzip.open(path, "rt", encoding="utf-8") as f:
         data = json.load(f)
     return data["results"][:sample_size]
+
+
+def iter_potentially_abused_domains_by_year(
+    year: int = ABUSED_DOMAINS_YEAR,
+    path: Path | None = None,
+) -> Iterator[dict]:
+    """Stream domain records from the .gz file that have timestamp in the given year.
+
+    Does not load the full array into memory; yields one record at a time.
+    Year defaults to ABUSED_DOMAINS_YEAR (2026).
+    """
+    if path is None:
+        path = Path(__file__).parent / "tests" / "Potentially Abused Domains.gz"
+    year_prefix = str(year)
+    with gzip.open(path, "rb") as f:
+        for record in ijson.items(f, "results.item"):
+            if record.get("timestamp", "").startswith(year_prefix):
+                yield record
+
+
+def load_potentially_abused_domains_for_year(
+    year: int = ABUSED_DOMAINS_YEAR,
+    path: Path | None = None,
+) -> list:
+    """Load all domain records from the .gz file for the given year into a list.
+
+    Consumes the streaming iterator; can use significant memory if the year
+    has many records. Year defaults to ABUSED_DOMAINS_YEAR (2026).
+    """
+    return list(iter_potentially_abused_domains_by_year(year=year, path=path))
 
 
 class App(JobApp):

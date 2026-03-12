@@ -68,6 +68,7 @@ SERVICE_STARTED
 tests/Potentially Undetectable Malware.json
 tests/Potentially Abused Domains.gz
 tests/Potentially Abused Domains_sample.json
+tests/Potentially Abused Domains_2026.json
 
 #-------------------------------------------------
 # Other Nonsense
