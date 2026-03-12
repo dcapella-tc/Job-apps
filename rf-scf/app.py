@@ -2,14 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import Iterable, List, Mapping
 
 from tcex import TcEx
 from tcex.exit import Exit, ExitCode
 
 from job_app import JobApp  # Import default Job App Class (Required)
-
-ALLOWED_ALGORITHMS = {"MD5", "SHA-1", "SHA-256"}
 
 
 def load_potentially_undetectable_malware() -> list:
@@ -22,38 +19,6 @@ def load_potentially_undetectable_malware() -> list:
 
     # The file is a top-level list of entities.
     return data
-
-
-def filter_entities_by_algorithm(
-    entities: Iterable[object], allowed_algorithms: Iterable[str] | None = None
-) -> List[Mapping[str, object]]:
-    """Filter entities to those whose algorithm is in the allowed set."""
-    allowed = set(allowed_algorithms) if allowed_algorithms is not None else ALLOWED_ALGORITHMS
-
-    filtered: List[Mapping[str, object]] = []
-    for entity in entities:
-        if not isinstance(entity, dict):
-            continue
-
-        algorithm = entity.get("algorithm")
-        if algorithm not in allowed:
-            continue
-
-        filtered.append(entity)
-
-    return filtered
-
-
-def process_malware_entities() -> List[Mapping[str, object]]:
-    """Load entities and filter them by allowed algorithms, no-op on each for now."""
-    entities = load_potentially_undetectable_malware()
-    filtered_entities = filter_entities_by_algorithm(entities)
-
-    for entity in filtered_entities:
-        # Placeholder for future processing logic.
-        pass
-
-    return filtered_entities
 
 
 class App(JobApp):
@@ -74,5 +39,9 @@ class App(JobApp):
 
     def run(self):
         """Run main App logic."""
-        _ = process_malware_entities()
+        entities = load_potentially_undetectable_malware()
+
+        for entity in entities:
+            # Placeholder for future processing logic.
+            pass
 
