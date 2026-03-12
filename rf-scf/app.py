@@ -102,26 +102,58 @@ class App(JobApp):
         # setting the base url allow for subsequent API call
         # to be made by only providing the API endpoint/path.
         self.tcex.session.external.base_url = 'https://feodotracker.abuse.ch'
+        self.tcex.log.info(
+            'App.setup: configured external base URL to %s',
+            self.tcex.session.external.base_url,
+        )
 
     def run(self):
         """Run main App logic."""
         entities = load_potentially_undetectable_malware()
+        total_entities = len(entities)
+        candidate_entities = 0
+        indicators_added = 0
+
+        self.tcex.log.info(
+            'App.run: starting processing for owner %s with %d entities.',
+            self.in_.tc_owner,
+            total_entities,
+        )
 
         for entity in entities:
             # Placeholder for future processing logic.
-            if entity.get('algorithm').lower() in ['sha-256', 'sha-1', 'md5']:
-                last_seen_iso = normalize_timestamp_to_iso8601_utc(entity["lastSeen"])
+            if entity.get('algorithm', '').lower() in ['sha-256', 'sha-1', 'md5']:
+                candidate_entities += 1
+
                 indicator = {
+                    "xid": self.batch.generate_xid([self.in_.tc_owner, 'file', entity["hash"]]),
                     "type": "file",
                     "summary": entity["hash"],
-                    "attribute": [
-                        {
-                            "type": "Last Seen",
-                            "value": last_seen_iso,
-                        }
-                    ],
                 }
-                self.batch.add(indicator)
+                if entity.get('lastSeen',''):
+                    try:
+                        last_seen_iso = normalize_timestamp_to_iso8601_utc(entity.get("lastSeen"))
+                    except ValueError as ex:
+                        self.tcex.log.error(
+                            'App.run: invalid lastSeen for hash %s: %r (%s)',
+                            entity.get("hash"),
+                            entity.get("lastSeen"),
+                            ex,
+                        )
+                        raise
+                    indicator["attribute"] = [{
+                        "type": "Last Seen",
+                        "value": last_seen_iso,
+                    }]
+                self.batch.add_indicator(indicator)
+                indicators_added += 1
+        self.tcex.log.info(
+            'App.run: finished loop. total_entities=%d, candidate_entities=%d, indicators_added=%d',
+            total_entities,
+            candidate_entities,
+            indicators_added,
+        )
         self.batch.submit_all()
+        self.tcex.log.info('App.run: batch submission complete.')
 
         
