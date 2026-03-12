@@ -2,11 +2,14 @@
 
 import json
 from pathlib import Path
+from typing import Iterable, List, Mapping
 
 from tcex import TcEx
-from tcex.exit import ExitCode
+from tcex.exit import Exit, ExitCode
 
 from job_app import JobApp  # Import default Job App Class (Required)
+
+ALLOWED_ALGORITHMS = {"MD5", "SHA-1", "SHA-256"}
 
 
 def load_potentially_undetectable_malware() -> list:
@@ -21,13 +24,36 @@ def load_potentially_undetectable_malware() -> list:
     return data
 
 
-def process_malware_entities() -> None:
-    """Iterate over each entity from the malware JSON and no-op for now."""
-    entities = load_potentially_undetectable_malware()
+def filter_entities_by_algorithm(
+    entities: Iterable[object], allowed_algorithms: Iterable[str] | None = None
+) -> List[Mapping[str, object]]:
+    """Filter entities to those whose algorithm is in the allowed set."""
+    allowed = set(allowed_algorithms) if allowed_algorithms is not None else ALLOWED_ALGORITHMS
 
+    filtered: List[Mapping[str, object]] = []
     for entity in entities:
+        if not isinstance(entity, dict):
+            continue
+
+        algorithm = entity.get("algorithm")
+        if algorithm not in allowed:
+            continue
+
+        filtered.append(entity)
+
+    return filtered
+
+
+def process_malware_entities() -> List[Mapping[str, object]]:
+    """Load entities and filter them by allowed algorithms, no-op on each for now."""
+    entities = load_potentially_undetectable_malware()
+    filtered_entities = filter_entities_by_algorithm(entities)
+
+    for entity in filtered_entities:
         # Placeholder for future processing logic.
         pass
+
+    return filtered_entities
 
 
 class App(JobApp):
@@ -48,70 +74,5 @@ class App(JobApp):
 
     def run(self):
         """Run main App logic."""
-        with self.tcex.session.external as s:
-            # https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.json
-            r = s.get('/downloads/ipblocklist_recommended.json')
+        _ = process_malware_entities()
 
-            if r.ok:
-                ti_data = r.json()
-
-                # Example JSON
-                # {
-                #   "ip_address": "178.128.23.9",
-                #   "port": 4125,
-                #   "status": "online",
-                #   "hostname": null,
-                #   "as_number": 14061,
-                #   "as_name": "DIGITALOCEAN-ASN",
-                #   "country": "SG",
-                #   "first_seen": "2021-05-16 19:49:33",
-                #   "last_online": "2023-04-29",
-                #   "malware": "Dridex"
-                # }
-
-                for ti in ti_data:
-                    # create batch entry
-                    ip_address = ti['ip_address']
-                    address = self.batch.address(ip_address, rating='4.0', confidence='100')
-
-                    # map first seen to "First Seen" attribute
-                    first_seen = ti.get('first_seen')
-                    if first_seen:
-                        first_seen = self.tcex.util.any_to_datetime(first_seen).strftime(
-                            '%Y-%m-%dT%H:%M:%SZ'
-                        )
-                        address.attribute('First Seen', first_seen)
-
-                    # map last online to "Last Seen" attribute
-                    last_online = ti.get('last_online')
-                    if last_online:
-                        last_online = self.tcex.util.any_to_datetime(last_online).strftime(
-                            '%Y-%m-%dT%H:%M:%SZ'
-                        )
-                        address.attribute('Last Seen', last_online)
-
-                    # map port to "Port" attribute
-                    port = ti.get('port')
-                    if port:
-                        address.attribute('Port', port)
-
-                    # map malware to "Malware" tag
-                    malware = ti.get('malware')
-                    if malware:
-                        address.tag(malware)
-
-                    # optionally save object to disk to save on memory usage
-                    self.batch.save(address)
-            else:
-                self.tcex.exit.exit(ExitCode.SUCCESS, 'Failed to download data.')
-
-        # submit batch job
-        batch_status = self.batch.submit_all()
-        self.log.info(f'batch-status={batch_status}')
-
-        self.exit_message = 'Downloaded data and create batch job.'
-
-
-if __name__ == "__main__":
-    # Simple manual hook to exercise the malware entity processing while developing.
-    process_malware_entities()
