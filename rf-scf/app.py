@@ -21,6 +21,16 @@ def _sanitize_key(key: str) -> str:
     return s if s else '_'
 
 
+def _parse_json(s, default=None):
+    """Parse JSON string; return default on empty or error."""
+    if s is None or (isinstance(s, str) and not s.strip()):
+        return default
+    try:
+        return json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        return default
+
+
 class App(JobApp):
     """Job App"""
 
@@ -51,7 +61,35 @@ class App(JobApp):
                     row_vars = types.SimpleNamespace()
                     for k, v in row.items():
                         setattr(row_vars, _sanitize_key(k), v)
-                    # row_vars.Name, row_vars.Risk, etc. available here for downstream use
+
+                    risk_val = int(row_vars.Risk) if getattr(row_vars, 'Risk', None) else 0
+                    indicator = {
+                        'summary': row_vars.Name,
+                        'confidence': risk_val,
+                        'threat': round(risk_val / 20),
+                    }
+
+                    indicator_notes_raw = getattr(row_vars, 'IndicatorNotes', None)
+                    indicator_attributes = _parse_json(indicator_notes_raw) if indicator_notes_raw else None
+
+                    ta_ids = _parse_json(getattr(row_vars, 'ThreatActorIDs', None), []) or []
+                    ta_names = _parse_json(getattr(row_vars, 'ThreatActorNames', None), {}) or {}
+                    ta_aliases = _parse_json(getattr(row_vars, 'ThreatActorAliases', None), {}) or {}
+                    ta_categories = _parse_json(getattr(row_vars, 'ThreatActorCategories', None), {}) or {}
+                    ta_notes = _parse_json(getattr(row_vars, 'ThreatActorNotes', None), {}) or {}
+
+                    for ta_id in ta_ids:
+                        name = ta_names.get(ta_id)
+                        aliases = ta_aliases.get(ta_id)
+                        tags = ta_categories.get(ta_id)
+                        attributes = ta_notes.get(ta_id)
+                        threat_actor = {
+                            'name': name,
+                            'aliases': aliases,
+                            'tags': tags,
+                            'attributes': attributes,
+                        }
+                        # indicator, indicator_attributes, threat_actor available for downstream use
         except FileNotFoundError:
             self.tcex.log.error(f'CSV file not found: {csv_path}')
             return
