@@ -294,7 +294,7 @@ class App(JobApp):
 
     def run(self):
         """Run main App logic."""
-        last_run_raw = (self.in_.last_run or '').strip() or '30 Days Ago'
+        last_run_raw = (self.in_.last_run or '').strip()
         try:
             last_run_dt = parse_last_run(last_run_raw)
         except ValueError as e:
@@ -367,3 +367,7 @@ class App(JobApp):
                     self._batch_create_indicators(associated_indicators)
 
             self.tcex.log.info(f'Fetched details for {len(pulse_details)} pulses.')
+
+            last_run_dt = datetime.now(timezone.utc)
+            self.tcex.app.results_tc('last_run', last_run_dt.isoformat())
+            self.tcex.log.info(f'Last run: {last_run_dt.isoformat()}')
