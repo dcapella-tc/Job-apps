@@ -1,4 +1,4 @@
-from app import load_potentially_undetectable_malware
+from app import (App,load_potentially_undetectable_malware)
 
 
 def test_load_potentially_undetectable_malware_non_empty():
