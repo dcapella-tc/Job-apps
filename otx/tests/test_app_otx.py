@@ -16,6 +16,7 @@ from app import (
     parse_last_run,
 )
 from naics import naics_tags_for_keyword
+from tcex.exit import ExitCode
 
 
 def test_parse_last_run_days_ago():
@@ -71,6 +72,114 @@ def test_parse_last_run_empty_raises():
     with pytest.raises(ValueError) as exc_info:
         parse_last_run('')
     assert 'last_run must be' in str(exc_info.value)
+
+
+def test_parse_last_run_whitespace_raises():
+    """Parse_last_run with whitespace-only raises ValueError."""
+    with pytest.raises(ValueError) as exc_info:
+        parse_last_run('   ')
+    assert 'last_run must be' in str(exc_info.value)
+
+
+def test_run_invalid_last_run_exits_without_calling_api():
+    """run() with invalid last_run calls exit and does not call the API."""
+    tcex = MagicMock()
+    tcex.api.tc.v2.batch.return_value = MagicMock()
+    external_session = MagicMock()
+    tcex.session.external.__enter__.return_value = external_session
+    tcex.session.external.__exit__.return_value = False
+    tcex.exit.exit = MagicMock()
+    tcex.log.info = MagicMock()
+    tcex.log.error = MagicMock()
+    in_ = types.SimpleNamespace(
+        tc_owner='Org', otx_api_key='key', last_run='not-a-valid-date'
+    )
+    app = App(tcex)
+    app.in_ = in_
+
+    app.run()
+
+    tcex.exit.exit.assert_called_once()
+    assert tcex.exit.exit.call_args[0][0] == ExitCode.FAILURE
+    assert 'last_run must be' in str(tcex.exit.exit.call_args[0][1])
+    external_session.get.assert_not_called()
+
+
+def test_run_valid_last_run_passes_modified_since():
+    """run() passes parsed last_run as modified_since (ISO string) in first request."""
+    tcex = MagicMock()
+    tcex.api.tc.v2.batch.return_value = MagicMock()
+    external_session = MagicMock()
+    external_session.__enter__.return_value = external_session
+    external_session.__exit__.return_value = False
+    tcex.session.external = external_session
+    tcex.exit.exit = MagicMock()
+    tcex.log.info = MagicMock()
+    tcex.log.debug = MagicMock()
+    tcex.app.results_tc = MagicMock()
+    in_ = types.SimpleNamespace(
+        tc_owner='Org', otx_api_key='API_KEY', last_run='7 Days Ago'
+    )
+    list_response = MagicMock()
+    list_response.ok = True
+    list_response.json.return_value = {'results': [{'id': '123'}], 'next': None}
+    detail_response = MagicMock()
+    detail_response.ok = True
+    detail_response.json.return_value = {
+        'id': '123',
+        'name': 'Example Pulse',
+        'indicators': [],
+    }
+    external_session.get.side_effect = [list_response, detail_response]
+
+    app = App(tcex)
+    app.in_ = in_
+    app.run()
+
+    first_get_kwargs = external_session.get.call_args_list[0][1]
+    assert 'params' in first_get_kwargs
+    modified_since = first_get_kwargs['params']['modified_since']
+    assert 'T' in modified_since
+    assert modified_since.endswith('Z')
+
+
+def test_run_persists_last_run_on_success():
+    """run() calls results_tc('last_run', iso_string) after successful completion."""
+    tcex = MagicMock()
+    tcex.api.tc.v2.batch.return_value = MagicMock()
+    external_session = MagicMock()
+    external_session.__enter__.return_value = external_session
+    external_session.__exit__.return_value = False
+    tcex.session.external = external_session
+    tcex.exit.exit = MagicMock()
+    tcex.log.info = MagicMock()
+    tcex.log.debug = MagicMock()
+    tcex.app.results_tc = MagicMock()
+    in_ = types.SimpleNamespace(
+        tc_owner='Org', otx_api_key='API_KEY', last_run='7 Days Ago'
+    )
+    list_response = MagicMock()
+    list_response.ok = True
+    list_response.json.return_value = {'results': [{'id': '123'}], 'next': None}
+    detail_response = MagicMock()
+    detail_response.ok = True
+    detail_response.json.return_value = {
+        'id': '123',
+        'name': 'Example Pulse',
+        'indicators': [],
+    }
+    external_session.get.side_effect = [list_response, detail_response]
+
+    app = App(tcex)
+    app.in_ = in_
+    app.run()
+
+    tcex.app.results_tc.assert_called()
+    calls = [c for c in tcex.app.results_tc.call_args_list if c[0][0] == 'last_run']
+    assert len(calls) >= 1
+    _, value = calls[0][0]
+    assert isinstance(value, str)
+    assert 'T' in value
 
 
 def test_fetch_pulse_detail_calls_correct_url_and_exposes_payload():
