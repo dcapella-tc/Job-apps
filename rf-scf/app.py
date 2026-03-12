@@ -110,18 +110,11 @@ class App(JobApp):
             self.tcex.session.external.base_url,
         )
 
-    def run(self):
-        """Run main App logic."""
-        entities = load_potentially_undetectable_malware()
+    def _process_entities(self, entities: list) -> tuple[int, int, int]:
+        """Process entities into batch file indicators. Returns (total, candidates, indicators_added)."""
         total_entities = len(entities)
         candidate_entities = 0
         indicators_added = 0
-
-        self.tcex.log.info(
-            'App.run: starting processing for owner %s with %d entities.',
-            self.in_.tc_owner,
-            total_entities,
-        )
 
         for entity in entities:
             if entity.get('algorithm', '').lower() in ALGORITHM_HASH_ATTR:
@@ -138,6 +131,25 @@ class App(JobApp):
 
                 self.batch.save(ioc_file)
                 indicators_added += 1
+
+        return total_entities, candidate_entities, indicators_added
+
+    def run(self):
+        """Run main App logic."""
+        entities = load_potentially_undetectable_malware()
+        self.tcex.log.info(
+            'App.run: starting processing for owner %s with %d entities.',
+            self.in_.tc_owner,
+            len(entities),
+        )
+
+        total_entities, candidate_entities, indicators_added = self._process_entities(entities)
+        self.tcex.log.info(
+            'App.run: finished loop. total_entities=%d, candidate_entities=%d, indicators_added=%d',
+            total_entities,
+            candidate_entities,
+            indicators_added,
+        )
 
         batch_response = self.batch.submit_all()
         self.batch.close()
