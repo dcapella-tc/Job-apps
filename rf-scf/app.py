@@ -1,5 +1,6 @@
 """ThreatConnect Job App"""
 
+import gzip
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,6 +89,23 @@ def load_potentially_undetectable_malware() -> list:
 
     # The file is a top-level list of entities.
     return data
+
+
+def load_potentially_abused_domains_sample(
+    sample_size: int = 500,
+    path: Path | None = None,
+) -> list:
+    """Load a sample of domain records from tests/Potentially Abused Domains.gz.
+
+    The .gz file contains a single JSON object with "count" and "results".
+    Returns the first sample_size items from results. The full file is loaded
+    into memory (~4.6M records); suitable for one-off sample generation.
+    """
+    if path is None:
+        path = Path(__file__).parent / "tests" / "Potentially Abused Domains.gz"
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        data = json.load(f)
+    return data["results"][:sample_size]
 
 
 class App(JobApp):
