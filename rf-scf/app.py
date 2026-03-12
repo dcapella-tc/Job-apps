@@ -5,6 +5,13 @@ from tcex.exit import ExitCode
 
 from job_app import JobApp  # Import default Job App Class (Required)
 
+import csv
+import json
+import os
+
+# testing: testing data
+test_csv_file = 'Threat Actor Retro-Hunts - Sample Set 100.csv'
+
 
 class App(JobApp):
     """Job App"""
@@ -24,65 +31,44 @@ class App(JobApp):
 
     def run(self):
         """Run main App logic."""
+        base_dir = os.path.dirname(__file__)
+        csv_path = os.path.join(base_dir, test_csv_file)
+        first_row = None
+
+        try:
+            with open(csv_path, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    first_row = row
+                    break
+        except FileNotFoundError:
+            self.tcex.log.error(f'CSV file not found: {csv_path}')
+            return
+        except Exception as e:
+            self.tcex.log.error(f'Error reading CSV file {csv_path}: {e}')
+            return
+
+        if first_row is None:
+            self.tcex.log.warning('CSV file appears to be empty; no rows to write.')
+            return
+
+        tests_dir = os.path.join(base_dir, 'tests')
+        os.makedirs(tests_dir, exist_ok=True)
+        json_path = os.path.join(tests_dir, 'test_row.json')
+
+        try:
+            with open(json_path, 'w', encoding='utf-8') as jsonfile:
+                json.dump(first_row, jsonfile, indent=2)
+        except Exception as e:
+            self.tcex.log.error(f'Error writing JSON file {json_path}: {e}')
+            return
+
+        self.tcex.log.info(f'Wrote first CSV row to {json_path}')
+
         with self.tcex.session.external as s:
             # https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.json
-            r = s.get('/downloads/ipblocklist_recommended.json')
+            # r = s.get('/someendpoint.csv')
 
-            if r.ok:
-                ti_data = r.json()
-
-                # Example JSON
-                # {
-                #   "ip_address": "178.128.23.9",
-                #   "port": 4125,
-                #   "status": "online",
-                #   "hostname": null,
-                #   "as_number": 14061,
-                #   "as_name": "DIGITALOCEAN-ASN",
-                #   "country": "SG",
-                #   "first_seen": "2021-05-16 19:49:33",
-                #   "last_online": "2023-04-29",
-                #   "malware": "Dridex"
-                # }
-
-                for ti in ti_data:
-                    # create batch entry
-                    ip_address = ti['ip_address']
-                    address = self.batch.address(ip_address, rating='4.0', confidence='100')
-
-                    # map first seen to "First Seen" attribute
-                    first_seen = ti.get('first_seen')
-                    if first_seen:
-                        first_seen = self.tcex.util.any_to_datetime(first_seen).strftime(
-                            '%Y-%m-%dT%H:%M:%SZ'
-                        )
-                        address.attribute('First Seen', first_seen)
-
-                    # map last online to "Last Seen" attribute
-                    last_online = ti.get('last_online')
-                    if last_online:
-                        last_online = self.tcex.util.any_to_datetime(last_online).strftime(
-                            '%Y-%m-%dT%H:%M:%SZ'
-                        )
-                        address.attribute('Last Seen', last_online)
-
-                    # map port to "Port" attribute
-                    port = ti.get('port')
-                    if port:
-                        address.attribute('Port', port)
-
-                    # map malware to "Malware" tag
-                    malware = ti.get('malware')
-                    if malware:
-                        address.tag(malware)
-
-                    # optionally save object to disk to save on memory usage
-                    self.batch.save(address)
-            else:
-                self.tcex.exit.exit(ExitCode.SUCCESS, 'Failed to download data.')
-
-        # submit batch job
-        batch_status = self.batch.submit_all()
-        self.log.info(f'batch-status={batch_status}')
-
-        self.exit_message = 'Downloaded data and create batch job.'
+            # if not r.ok:
+            #     self.tcex.exit.exit(ExitCode.FAILURE, 'Failed to download data.')
+            pass
