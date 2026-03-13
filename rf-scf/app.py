@@ -2,7 +2,7 @@
 
 import gzip
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -24,6 +24,9 @@ ALGORITHM_HASH_ATTR = {'sha-256': 'sha256', 'sha-1': 'sha1', 'md5': 'md5'}
 
 # Year used for "this year" when filtering Potentially Abused Domains
 ABUSED_DOMAINS_YEAR = 2026
+
+# Target number of recent Potentially Abused Domain IOCs to process
+RECENT_ABUSED_DOMAINS_TARGET = 200_000
 
 
 def normalize_timestamp_to_iso8601_utc(value: Any) -> str:
@@ -113,6 +116,21 @@ def load_potentially_abused_domains_sample(
     return data["results"][:sample_size]
 
 
+def iter_potentially_abused_domains(
+    path: Path | None = None,
+) -> Iterator[dict]:
+    """Stream all Potentially Abused Domain records from the .gz file.
+
+    This iterator does not filter by year or date; callers can layer any
+    additional filtering they need on top.
+    """
+    if path is None:
+        path = Path(__file__).parent / "tests" / "Potentially Abused Domains.gz"
+    with gzip.open(path, "rb") as f:
+        for record in ijson.items(f, "results.item"):
+            yield record
+
+
 def iter_potentially_abused_domains_by_year(
     year: int = ABUSED_DOMAINS_YEAR,
     path: Path | None = None,
@@ -193,6 +211,106 @@ class App(JobApp):
             self.tcex.session.external.base_url,
         )
 
+    def _process_abused_domain(self, record: dict) -> None:
+        """Hook for per-domain processing of Potentially Abused Domains IOCs."""
+        # Placeholder: implement indicator creation or other logic here.
+        pass
+
+    def _select_recent_abused_domain_dates(
+        self,
+        target_count: int,
+        year: int | None = ABUSED_DOMAINS_YEAR,
+    ) -> set[str]:
+        """Select recent dates (YYYY-MM-DD) until cumulative count reaches target_count.
+
+        Streams the dataset once to build counts per date, then walks dates from
+        most recent to oldest until the cumulative total meets or exceeds the target.
+        """
+        counts: dict[str, int] = {}
+
+        # First pass: build per-day counts within the given year.
+        for record in iter_potentially_abused_domains_by_year(year=year):
+            ts = record.get("timestamp", "")
+            if len(ts) < 10:
+                continue
+            date_str = ts[:10]  # YYYY-MM-DD
+            counts[date_str] = counts.get(date_str, 0) + 1
+
+        if not counts:
+            return set()
+
+        today_utc = datetime.now(timezone.utc).date()
+
+        # Convert to date objects and drop any future dates.
+        date_objs: list[tuple[date, str]] = []
+        for ds in counts:
+            try:
+                d = datetime.strptime(ds, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if d <= today_utc:
+                date_objs.append((d, ds))
+
+        if not date_objs:
+            return set()
+
+        # Sort by date descending (most recent first).
+        date_objs.sort(reverse=True, key=lambda item: item[0])
+
+        selected: set[str] = set()
+        cumulative = 0
+        for d, ds in date_objs:
+            selected.add(ds)
+            cumulative += counts.get(ds, 0)
+            if cumulative >= target_count:
+                break
+
+        self.tcex.log.info(
+            "Selected %d dates for recent abused domains (target=%d, cumulative=%d).",
+            len(selected),
+            target_count,
+            cumulative,
+        )
+        return selected
+
+    def _process_recent_abused_domains(
+        self,
+        target_count: int = RECENT_ABUSED_DOMAINS_TARGET,
+        year: int | None = ABUSED_DOMAINS_YEAR,
+    ) -> None:
+        """Process the most recent Potentially Abused Domain IOCs up to target_count.
+
+        Goes day by day backwards from today (UTC) by selecting dates with the
+        latest timestamps first until the cumulative IOC count reaches or exceeds
+        target_count, then streams the dataset again and processes records whose
+        dates fall within that selected set.
+        """
+        selected_dates = self._select_recent_abused_domain_dates(
+            target_count=target_count,
+            year=year,
+        )
+        if not selected_dates:
+            self.tcex.log.info(
+                "No Potentially Abused Domains selected for recent processing."
+            )
+            return
+
+        processed = 0
+        for record in iter_potentially_abused_domains_by_year(year=year):
+            ts = record.get("timestamp", "")
+            if len(ts) < 10:
+                continue
+            date_str = ts[:10]
+            if date_str in selected_dates:
+                self._process_abused_domain(record)
+                processed += 1
+
+        self.tcex.log.info(
+            "Processed %d Potentially Abused Domains records across %d recent dates.",
+            processed,
+            len(selected_dates),
+        )
+
     def _process_entities(self, entities: list) -> tuple[int, int, int]:
         """Process entities into batch file indicators. Returns (total, candidates, indicators_added)."""
         total_entities = len(entities)
@@ -232,6 +350,12 @@ class App(JobApp):
             total_entities,
             candidate_entities,
             indicators_added,
+        )
+
+        # Optionally process recent Potentially Abused Domains IOCs.
+        self._process_recent_abused_domains(
+            target_count=RECENT_ABUSED_DOMAINS_TARGET,
+            year=ABUSED_DOMAINS_YEAR,
         )
 
         batch_response = self.batch.submit_all()
