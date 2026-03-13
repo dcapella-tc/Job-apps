@@ -117,12 +117,14 @@ def iter_potentially_abused_domains_by_year(
     year: int = ABUSED_DOMAINS_YEAR,
     path: Path | None = None,
     max_records: int | None = None,
+    min_timestamp: datetime | None = None,
 ) -> Iterator[dict]:
     """Stream domain records from the .gz file that have timestamp in the given year.
 
     Does not load the full array into memory; yields one record at a time.
     Year defaults to ABUSED_DOMAINS_YEAR (2026).
     max_records caps output for memory safety; None means no limit.
+    min_timestamp restricts to records on or after that time (e.g. for "last N days"); use UTC.
     """
     if path is None:
         path = Path(__file__).parent / "tests" / "Potentially Abused Domains.gz"
@@ -130,17 +132,31 @@ def iter_potentially_abused_domains_by_year(
     n = 0
     with gzip.open(path, "rb") as f:
         for record in ijson.items(f, "results.item"):
-            if record.get("timestamp", "").startswith(year_prefix):
-                yield record
-                n += 1
-                if max_records is not None and n >= max_records:
-                    return
+            ts_str = record.get("timestamp", "")
+            if not ts_str.startswith(year_prefix):
+                continue
+            if min_timestamp is not None:
+                try:
+                    parsed = datetime.fromisoformat(
+                        ts_str.replace("Z", "+00:00")
+                    )
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    if parsed < min_timestamp:
+                        continue
+                except (ValueError, TypeError):
+                    continue
+            yield record
+            n += 1
+            if max_records is not None and n >= max_records:
+                return
 
 
 def load_potentially_abused_domains_for_year(
     year: int = ABUSED_DOMAINS_YEAR,
     path: Path | None = None,
     max_records: int | None = None,
+    min_timestamp: datetime | None = None,
 ) -> list:
     """Load domain records from the .gz file for the given year into a list.
 
@@ -149,7 +165,10 @@ def load_potentially_abused_domains_for_year(
     """
     return list(
         iter_potentially_abused_domains_by_year(
-            year=year, path=path, max_records=max_records
+            year=year,
+            path=path,
+            max_records=max_records,
+            min_timestamp=min_timestamp,
         )
     )
 
