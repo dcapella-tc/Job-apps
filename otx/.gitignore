@@ -34,6 +34,7 @@ lib_*
 permutations.json
 target
 temp
+example_payload_pulse_id.json
 
 #-------------------------------------------------
 # IDE Exclusions
