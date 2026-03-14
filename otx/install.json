@@ -6,6 +6,18 @@
     "appBuilderCompliant",
     "fileParams"
   ],
+  "feeds": [
+    {
+      "documentStorageLimitMb": 100,
+      "enableBulkJson": false,
+      "indicatorLimit": 5000000,
+      "jobFile": "otx-ingestion.json",
+      "sourceCategory": "Public",
+      "sourceDescription": "This app allows the ingestion of the OTX Feed into the ThreatConnect Platform.",
+      "sourceName": "OTX Feed"
+    }
+  ],
+
   "labels": [],
   "languageVersion": "3.11",
   "listDelimiter": "|",
