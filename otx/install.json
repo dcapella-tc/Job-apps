@@ -1,6 +1,6 @@
 {
   "allowOnDemand": true,
-  "displayName": "OTX Feed",
+  "displayName": "OTX Ingestion",
   "features": [
     "aotExecutionEnabled",
     "appBuilderCompliant",
@@ -9,7 +9,7 @@
   "labels": [],
   "languageVersion": "3.11",
   "listDelimiter": "|",
-  "note": "Import OTX Feed into ThreatConnect.",
+  "note": "Ingest OTX Feed into ThreatConnect.",
   "params": [
     {
       "label": "ThreatConnect Owner",
@@ -29,6 +29,10 @@
       "required": true,
       "sequence": 2,
       "type": "String"
+      ,"validValues": [
+        "${KEYCHAIN}",
+        "${TEXT}"
+      ]
     },
     {
       "default": "30 Days Ago",
