@@ -13,6 +13,7 @@ from app import (
     indicator_type_mapping,
     list_to_html_list,
     list_to_html_table,
+    normalize_targeted_countries,
     parse_last_run,
 )
 from naics import naics_tags_for_keyword
@@ -331,6 +332,31 @@ def test_extract_next_token_absent():
     """extract_next_token returns None when next is missing."""
     assert extract_next_token({}) is None
     assert extract_next_token({'results': []}) is None
+
+
+def test_normalize_targeted_countries_list_strips_and_canonical():
+    """normalize_targeted_countries with list strips whitespace and maps to canonical."""
+    result = normalize_targeted_countries(['Benin  ', '  Canada', 'United States (US)'])
+    assert result == ['Benin', 'Canada', 'United States (US)']
+
+
+def test_normalize_targeted_countries_string_semicolon_separated():
+    """normalize_targeted_countries with string splits on semicolon and strips."""
+    result = normalize_targeted_countries('United States (US);Canada;France')
+    assert result == ['United States (US)', 'Canada', 'France']
+
+
+def test_normalize_targeted_countries_empty():
+    """normalize_targeted_countries returns [] for empty list or empty string."""
+    assert normalize_targeted_countries([]) == []
+    assert normalize_targeted_countries('') == []
+    assert normalize_targeted_countries('   ;  ') == []
+
+
+def test_normalize_targeted_countries_dedupe_and_canonical():
+    """Variants and duplicates map to same canonical and appear once."""
+    result = normalize_targeted_countries(['benin', 'Benin  ', 'BENIN'])
+    assert result == ['Benin']
 
 
 def test_list_to_html_list():

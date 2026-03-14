@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 from uuid import uuid5, NAMESPACE_URL
 
 from tcex import TcEx
@@ -68,6 +68,61 @@ def extract_next_token(pulses_json: dict) -> Optional[str]:
     """Return the next page token (URL) from an OTX response payload."""
     next_token = pulses_json.get('next')
     return str(next_token) if next_token is not None else None
+
+
+# Canonical targeted country names (semicolon-separated); used to normalize and dedupe.
+_TARGETED_COUNTRIES_CANONICAL = (
+    "Afghanistan;Albania;Algeria;American Samoa;Andorra;Angola;Antigua and Barbuda;Argentina;"
+    "Armenia;Australia;Austria;Azerbaijan;Bahamas;Bahrain;Bangladesh;Barbados;Belarus;Belgium;"
+    "Belize;Benin;Bermuda;Bhutan;Bolivia;Bosnia and Herzegovina;Botswana;Brazil;"
+    "British Virgin Islands;Brunei;Brunei Darussalam;Bulgaria;Burkina Faso;Burundi;Cabo Verde;"
+    "Cambodia;Cameroon;Canada;Cayman Islands;Central African Republic;Chad;Channel Islands;"
+    "Chile;China;Colombia;Comoros;Congo (Brazzaville);Congo (Kinshasa);Costa Rica;Côte d'Ivoire;"
+    "Croatia;Cuba;Cyprus;Czech Republic;Czechia;Denmark;Denmark (incl. Greenland);Djibouti;"
+    "Dominica;Dominican Republic;Ecuador;Egypt;El Salvador;Equatorial Guinea;Eritrea;Estonia;"
+    "Ethiopia;Federated States of Micronesia;Fiji;Finland;France;Gabon;Gambia;Georgia;Germany;"
+    "Ghana;Gibraltar;Greece;Grenada;Guam;Guatemala;Guinea (Conakry);Guinea-Bissau;Guyana;Haiti;"
+    "Honduras;Hong Kong;Hungary;Iceland;India;Indonesia;Iran;Iraq;Ireland;Isle of Man;Israel;"
+    "Italy (incl. San Marino, Vatican State);Ivory Coast;Jamaica;Japan;Jordan;Kazakhstan;Kenya;"
+    "Kiribati;Korea;Kosovo;Kuwait;Kyrgyzstan;Laos;Latvia;Lebanon;Lesotho;Liberia;Libya;"
+    "Liechtenstein;Lithuania;Luxembourg;Macao;Madagascar;Malawi;Malaysia;Maldives;Mali;Malta;"
+    "Marshall Islands;Mauritania;Mauritius;Mexico;Micronesia;Moldova;Monaco;Mongolia;"
+    "Mongolia (part of China);Montenegro;Morocco;Mozambique;Myanmar (formerly Burma);Namibia;"
+    "NATO;Nauru;Nepal;New Zealand;Nicaragua;Niger;Nigeria;North Korea;North Macedonia;"
+    "Northern Ireland;Northern Mariana Islands;Norway;Oman;Pakistan;Palau;Palestine State;"
+    "Palestinian Ruled Territories;Panama;Papua New Guinea;Paraguay;Peru;Philippines;Poland;"
+    "Portugal;Qatar;Romania;Russian Federation;Rwanda;Saint Kitts and Nevis;Saint Lucia;"
+    "Saint Vincent and the Grenadines;San Marino;Sao Tome and Principe;Saudi Arabia;Senegal;"
+    "Serbia;Seychelles;Sierra Leone;Singapore;Slovakia;Slovenia;Solomon Islands;Somalia;"
+    "South Africa;South Korea;South Sudan;Spain;Sri Lanka;Sudan;Suriname;Swaziland;Sweden;"
+    "Switzerland;Syria;Taiwan;Tajikistan;Tanzania;Thailand;The Netherlands;Timor-Leste;Togo;"
+    "Tonga;Trinidad & Tobago;Tunisia;Turkey;Turkmenistan;Turks and Caicos;Tuvalu;Uganda;Ukraine;"
+    "UN;United Arab Emirates;United Kingdom;United States (US);Uruguay;US Virgin Islands;"
+    "Uzbekistan;Vanuatu;Venezuela;Vietnam;Yemen;Zambia;Zimbabwe;Unknown"
+)
+_TARGETED_COUNTRIES_LOOKUP: dict[str, str] = {}
+for _c in _TARGETED_COUNTRIES_CANONICAL.split(";"):
+    _s = _c.strip()
+    if _s:
+        _TARGETED_COUNTRIES_LOOKUP[_s.lower()] = _s
+
+
+def normalize_targeted_countries(value: Union[List[str], str]) -> List[str]:
+    """Normalize targeted country names: strip, accept list or semicolon-separated string, map to canonical, dedupe."""
+    if isinstance(value, str):
+        tokens = [t.strip() for t in value.split(";") if t.strip()]
+    else:
+        tokens = [str(t).strip() for t in (value or []) if str(t).strip()]
+    result: List[str] = []
+    seen: set[str] = set()
+    for t in tokens:
+        key = t.lower()
+        canonical = _TARGETED_COUNTRIES_LOOKUP.get(key, t)
+        if key not in seen:
+            seen.add(key)
+            result.append(canonical)
+    return result
+
 
 def list_to_html_list(header: str,rows: List[str]) -> str:
     return f"<b>{header}</b><ul>{''.join(f'<li>{row}</li>' for row in rows)}</ul>"
@@ -180,7 +235,7 @@ class App(JobApp):
         tags = detail.get('tags', [])
         references = detail.get('references', [])
         attack_ids = detail.get('attack_ids', [])
-        targeted_countries = detail.get('targeted_countries', [])
+        targeted_countries = normalize_targeted_countries(detail.get('targeted_countries', []))
         malware_families = detail.get('malware_families', [])
         industries = detail.get('industries', [])
 
@@ -201,22 +256,25 @@ class App(JobApp):
                 'summary': indicator.get('indicator'),
             })
 
-        all_tags: set[str] = set()
-        all_tags.update(tags)
-        all_tags.update(attack_ids)
-        all_tags.update(targeted_countries)
-        all_tags.update(malware_families)
-        all_tags.update(naics_tags_for_keyword(industries))
+        all_tags = []
+        if tags:
+            all_tags.extend(tags)
+        if attack_ids:
+            all_tags.extend(attack_ids)
+        if targeted_countries:
+            all_tags.extend(targeted_countries)
+        if malware_families:
+            all_tags.extend(malware_families)
+        if industries:
+            all_tags.extend(naics_tags_for_keyword(industries))
 
         external_details = list_to_html_list("Author",[author_id, author_username, author_avatar_url])
 
         attributes = [
             {"type": "Description", "value": description, "displayed": True},
-            {"type": "Author", "value": author_name},
+            {"type": "Author or Developer", "value": author_name},
             {"type": "External Date Last Modified", "value": modified},
             {"type": "External Date Created", "value": created},
-            {"type": "TLP", "value": tlp},
-            {"type": "Tags", "value": all_tags},
             {"type": "External Reference", "value": list_to_html_table("Reference", references)},
             {"type": "External Details", "value": external_details},
             {"type": "External ID", "value": pulse_id},
@@ -234,63 +292,89 @@ class App(JobApp):
             'type': 'Report',
         }
 
+        if tlp:
+            group['Security Label'] = f"TLP: {tlp}"
+
         return group
 
-    def _generate_xid(self, entity: dict) -> str:
-        """Generate a unique XID for a entity."""
-        return self.batch.generate_xid([self.in_.tc_owner, entity['type'], entity['name']])
+    # def _normalize_group_batch(self, group: dict) -> dict:
+    #     """Normalize a group for batch creation."""
+    #     xid = self.batch.generate_xid([self.in_.tc_owner, group['type'], group['name']])
+    #     # xid = self._generate_xid(group)
+    #     group['xid'] = xid
+    #     group_batch = {
+    #             'name': group['name']
+    #             , 'type': group['type']
+    #             , 'xid': xid
+    #         }
 
-    def _normalize_group_batch(self, group: dict) -> dict:
-        """Normalize a group for batch creation."""
-        xid = self._generate_xid(group)
-        group['xid'] = xid
-        group_batch = {
-                'name': group['name']
-                , 'type': group['type']
-                , 'xid': xid
-            }
+    #     if group.get('attributes', None):
+    #         group_batch['attribute'] = group['attributes']
 
-        if group.get('attributes', None):
-            group_batch['attribute'] = group['attributes']
+    #     if group.get('tags', None):
+    #         group_batch['tag'] = group['tags']
 
-        if group.get('tags', None):
-            group_batch['tag'] = group['tags']
+    #     if group.get('associatedGroupXid', None):
+    #         group_batch['associatedGroupXid'] = group['associatedGroupXid']
 
-        if group.get('associatedGroupXid', None):
-            group_batch['associatedGroupXid'] = group['associatedGroupXid']
+    #     return group_batch
 
-        return group_batch
+    # def _normalize_indicator_batch(self, indicator: dict) -> dict:
+    #     """Normalize an indicator for batch creation."""
+    #     indicator_batch = self.batch.indicator(indicator['type'], indicator['summary'])
+    #     associated_groups = indicator.get('associatedGroups', [])
+    #     for xid in associated_groups:
+    #         indicator_batch.association(xid)
+    #     self.batch.save(indicator_batch)
+        # return indicator_batch
+        # self.batch.save(indicator_batch)
+        # indicator_batch = {
+        #     'type': indicator['type'],
+        #     'summary': indicator['summary'],
+        #     'xid': self.batch.generate_xid([self.in_.tc_owner, indicator['type'], indicator['summary']])
+        #     # 'xid': self._generate_xid(indicator)
+        # }
 
-    def _normalize_indicator_batch(self, indicator: dict) -> dict:
-        """Normalize an indicator for batch creation."""
-        indicator_batch = {
-            'type': indicator['type'],
-            'summary': indicator['summary'],
-            'xid': self._generate_xid(indicator)
-        }
+        # if indicator.get('associatedGroups', None):
+        #     indicator_batch['associatedGroupXid'] = indicator['associatedGroups']
 
-        if indicator.get('associatedGroups', None):
-            indicator_batch['associatedGroupXid'] = indicator['associatedGroupXid']
-
-        return indicator_batch
+        # return indicator_batch
 
     def _batch_create_groups(self, groups: List[dict]):
         """Batch create groups."""
         for group in groups:
-            group_batch = self._normalize_group_batch(group)
-            self.batch.add_group(group_batch)
+            group_batch = self.batch.group(
+                group['type']
+                , group['name']
+                , xid = self.batch.generate_xid([self.in_.tc_owner, group['type'], group['name']])
+            )
 
-        self.batch.create_groups(groups)
-        self.tcex.log.info(f'Created {len(groups)} groups.')
+            attributes = group.get('attributes', [])
+            for attribute in attributes:
+                group_batch.attribute(attribute['type'], attribute['value'])
+            
+            tags = group.get('tags', [])
+            # if tags:
+            #     group_batch.tag(','.join(tags))
+            for tag in tags:
+                group_batch.tag(tag)
+
+            if group.get('associatedGroupXid', None):
+                group_batch.association(group['associatedGroupXid'])
+
+            if group.get('Security Label', None):
+                group_batch.security_label(group['Security Label'])
+
+            self.batch.save(group_batch)
 
     def _batch_create_indicators(self, indicators: List[dict]):
         """Batch create indicators."""
         for indicator in indicators:
-            indicator_batch = self._normalize_indicator_batch(indicator)
-            self.batch.add_indicator(indicator_batch)
-
-        self.batch.create_indicators(indicators)
-        self.tcex.log.info(f'Created {len(indicators)} indicators.')
+            indicator_batch = self.batch.indicator(indicator['type'], indicator['summary'])
+            associated_group_xid = indicator.get('associatedGroupXid', None)
+            if associated_group_xid:
+                indicator_batch.association(associated_group_xid)
+            self.batch.save(indicator_batch)
 
     def run(self):
         """Run main App logic."""
@@ -353,20 +437,30 @@ class App(JobApp):
             for group in pulse_details:
                 self._batch_create_groups([group])
 
-                associated_groups = group.get('associated_groups', None)
-                associated_indicators = group.get('associated_indicators', None)
+                associated_groups = group.get('associated_groups', [])
+                associated_indicators = group.get('associated_indicators', [])
+                group_xid = self.batch.generate_xid([self.in_.tc_owner, group['type'], group['name']])
 
-                if associated_groups:
-                    for associated_group in associated_groups:
-                        associated_group['associatedGroupXid'] = [group['xid']]
-                    self._batch_create_groups(associated_groups)
+                for associated_group in associated_groups:
+                    associated_group['associatedGroupXid'] = group_xid
+                self._batch_create_groups(associated_groups)
 
-                if associated_indicators:
-                    for indicator in associated_indicators:
-                        indicator['associatedGroups'] = [{'groupXid': group['xid']}]
-                    self._batch_create_indicators(associated_indicators)
+                for indicator in associated_indicators:
+                    indicator['associatedGroupXid'] = group_xid
+                self._batch_create_indicators(associated_indicators)
 
             self.tcex.log.info(f'Fetched details for {len(pulse_details)} pulses.')
+
+            batch_response = self.batch.submit_all()
+            self.batch.close()
+
+            errors = []
+            for item in batch_response:
+                errors.extend(item.get('errors', []))
+            if errors:
+                self.tcex.log.error('App.run: batch submission failed with %d errors', len(errors))
+                self.tcex.log.error('App.run: batch submission error: %s', errors[0])
+
 
             last_run_dt = datetime.now(timezone.utc)
             self.tcex.app.results_tc('last_run', last_run_dt.isoformat())
