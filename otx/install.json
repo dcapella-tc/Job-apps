@@ -1,6 +1,6 @@
 {
   "allowOnDemand": true,
-  "displayName": "Batch Template",
+  "displayName": "OTX Feed",
   "features": [
     "aotExecutionEnabled",
     "appBuilderCompliant",
@@ -9,7 +9,7 @@
   "labels": [],
   "languageVersion": "3.11",
   "listDelimiter": "|",
-  "note": "A template of a working ingress Organization App.",
+  "note": "Import OTX Feed into ThreatConnect.",
   "params": [
     {
       "label": "ThreatConnect Owner",

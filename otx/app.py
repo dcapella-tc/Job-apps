@@ -455,13 +455,19 @@ class App(JobApp):
             self.batch.close()
 
             errors = []
+            successes = []
             for item in batch_response:
                 errors.extend(item.get('errors', []))
+                successes.extend(item.get('successes', []))
             if errors:
                 self.tcex.log.error('App.run: batch submission failed with %d errors', len(errors))
                 self.tcex.log.error('App.run: batch submission error: %s', errors[0])
 
+            if successes:
+                self.tcex.log.info('App.run: batch submission successful with %d items', len(successes))
+                self.tcex.log.info('App.run: batch submission success: %s', successes[0])
 
             last_run_dt = datetime.now(timezone.utc)
             self.tcex.app.results_tc('last_run', last_run_dt.isoformat())
             self.tcex.log.info(f'Last run: {last_run_dt.isoformat()}')
+            self.tcex.exit.exit(ExitCode.SUCCESS, f'Batch submission successful with {len(successes)} items.')

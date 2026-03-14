@@ -155,17 +155,17 @@ NAICS_ENTRIES: List[tuple] = [
 ]
 
 
-def naics_tags_for_keyword(text: str) -> List[str]:
+def naics_tags_for_keyword(tags: List[str]) -> List[str]:
     """Return ThreatConnect-format NAICS tags whose sector/subsector name contains the given text.
 
     Matching is case-insensitive substring. Empty input returns no tags.
     Example: "finance" -> ["NAICS: 52 - Finance and Insurance", ...]
     """
-    normalized = (text or "").strip().lower()
-    if not normalized:
-        return []
     result: List[str] = []
-    for code, name in NAICS_ENTRIES:
-        if normalized in name.lower():
-            result.append(f"NAICS: {code} - {name}")
+    for tag in tags:
+        normalized = (tag or "").strip().lower()
+        for code, name in NAICS_ENTRIES:
+            if normalized in name.lower():
+                result.append(f"NAICS: {code} - {name}")
+                break
     return result
