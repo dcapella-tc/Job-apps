@@ -23,6 +23,23 @@
       ]
     },
     {
+      "label": "OTX API Key",
+      "name": "otx_api_key",
+      "note": "API key for AlienVault OTX. Required for authenticated requests to the OTX API.",
+      "required": true,
+      "sequence": 2,
+      "type": "String"
+    },
+    {
+      "default": "30 Days Ago",
+      "label": "Last Run",
+      "name": "last_run",
+      "note": "Initial value: \"N Days Ago\" (e.g. \"7 Days Ago\") or an ISO date/datetime. Persisted after each run for incremental sync.",
+      "required": false,
+      "sequence": 3,
+      "type": "String"
+    },
+    {
       "default": "warning",
       "label": "Logging Level",
       "name": "tc_log_level",
